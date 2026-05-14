@@ -12,6 +12,7 @@ type Review = {
   book_id: string;
   rating: number;
   body: string;
+  book: Book | null;
 };
 
 export default function ProfilePage({
@@ -27,56 +28,74 @@ export default function ProfilePage({
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
+      const { data: reviewData, error } = await supabase
         .from("reviews")
         .select("id,book_id,rating,body")
         .eq("user_id", userId);
 
-      setReviews(data ?? []);
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      const withBooks = await Promise.all(
+        (reviewData ?? []).map(async (review) => {
+          const { data: book } = await supabase
+            .from("books")
+            .select("id,title,author_name")
+            .eq("id", review.book_id)
+            .maybeSingle();
+
+          return {
+            ...review,
+            book,
+          };
+        })
+      );
+
+      setReviews(withBooks);
     }
 
     load();
   }, [userId]);
 
- async function openBook(book_id: string) {
-  console.log("クリックされた book_id:", book_id);
-
-  const { data } = await supabase
-    .from("books")
-    .select("id,title,author_name")
-    .eq("id", book_id)
-    .single();
-
-  console.log("取得した本:", data);
-
-  if (data) {
-    console.log("onBookSelect 実行");
-    onBookSelect(data);
-  } else {
-    alert("本が見つかりません");
-  }
-}
-
   return (
-    <div style={{ padding: 24 }}>
-      <button onClick={onBack}>← 戻る</button>
+    <div style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
+      <button onClick={onBack}>← ホームへ戻る</button>
 
+      <h1>プロフィール</h1>
       <h2>自分のレビュー</h2>
 
-      {reviews.map((r) => (
-        <div
-          key={r.id}
-          onClick={() => openBook(r.book_id)}
+      {reviews.map((review) => (
+        <button
+          key={review.id}
+          onClick={() => {
+            alert("クリックされました");
+
+            if (!review.book) {
+              alert("本データが見つかりません");
+              return;
+            }
+
+            onBookSelect(review.book);
+          }}
           style={{
+            display: "block",
+            width: "100%",
+            textAlign: "left",
+            padding: 16,
+            marginTop: 12,
             border: "1px solid #ddd",
-            padding: 12,
-            marginTop: 8,
+            borderRadius: 12,
+            background: "white",
             cursor: "pointer",
           }}
         >
-          <div>{"★".repeat(r.rating)}</div>
-          <p>{r.body}</p>
-        </div>
+          <strong>{review.book?.title ?? "不明な本"}</strong>
+          <p>{review.book?.author_name}</p>
+          <div>{"★".repeat(review.rating)}</div>
+          <p>{review.body}</p>
+        </button>
       ))}
     </div>
   );
