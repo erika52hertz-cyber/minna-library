@@ -1,6 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = 'https://rwgnmnukzwiiqicaiubf.supabase.co/rest/v1/'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3Z25tbnVrendpaXFpY2FpdWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjUzOTYsImV4cCI6MjA5NDMwMTM5Nn0.GiexKferU25UT_lKpfsZ6Vxw933Rf86UWE2DhfQNsYA'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+// 🔥 ここに /rest/v1 を絶対につけない
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
