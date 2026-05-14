@@ -22,10 +22,9 @@ export default function App() {
   }, []);
 
   if (!session) {
-    return <div>ログインしてください</div>;
+    return <div style={{ padding: 24 }}>ログインしてください</div>;
   }
 
-  // 🔥 ここが最重要（これで絶対遷移する）
   if (selectedBook) {
     return (
       <BookDetailPage
@@ -44,7 +43,9 @@ export default function App() {
       {page === "home" ? (
         <HomePage
           userId={session.user.id}
+          selectedBook={null}
           onBookSelect={setSelectedBook}
+          onBack={() => setSelectedBook(null)}
         />
       ) : (
         <ProfilePage
