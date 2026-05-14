@@ -11,6 +11,9 @@ type Book = {
 };
 
 export default function App() {
+  // 🔥 デバッグ用（本番でSupabase URL確認）
+  console.log("SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL);
+
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [page, setPage] = useState<"home" | "profile">("home");
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
@@ -57,7 +60,7 @@ export default function App() {
     return <div style={{ padding: 24 }}>読み込み中...</div>;
   }
 
-  // 🔐 未ログイン時
+  // 🔐 未ログイン
   if (!session) {
     return (
       <div style={{ padding: 24 }}>
@@ -91,7 +94,7 @@ export default function App() {
     );
   }
 
-  // 📖 本詳細表示
+  // 📖 本詳細
   if (selectedBook) {
     return (
       <BookDetailPage
@@ -102,7 +105,7 @@ export default function App() {
     );
   }
 
-  // 🏠 通常画面
+  // 🏠 メイン
   return (
     <div>
       <div style={{ position: "fixed", right: 16, top: 16 }}>
