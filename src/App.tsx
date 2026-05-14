@@ -11,11 +11,13 @@ type Book = {
 };
 
 export default function App() {
-  // 🔥 デバッグ用（Supabase URL & KEY確認）
+  // 🔥 環境変数チェック（ここが最重要）
   console.log("SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL);
   console.log(
-    "ANON KEY HEAD:",
-    import.meta.env.VITE_SUPABASE_ANON_KEY?.slice(0, 20)
+    "ANON KEY CHECK:",
+    import.meta.env.VITE_SUPABASE_ANON_KEY?.slice(0, 30),
+    "...",
+    import.meta.env.VITE_SUPABASE_ANON_KEY?.slice(-10)
   );
 
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -109,7 +111,7 @@ export default function App() {
     );
   }
 
-  // 🏠 メイン
+  // 🏠 メイン画面
   return (
     <div>
       <div style={{ position: "fixed", right: 16, top: 16 }}>
