@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import BookDetailPage from "./BookDetailPage";
 
 type Book = {
   id: string;
@@ -10,6 +11,7 @@ type Book = {
 export default function HomePage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [keyword, setKeyword] = useState("");
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 
   async function loadBooks(search = "") {
     let query = supabase
@@ -37,9 +39,13 @@ export default function HomePage() {
     loadBooks();
   }, []);
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    loadBooks(keyword);
+  if (selectedBook) {
+    return (
+      <BookDetailPage
+        book={selectedBook}
+        onBack={() => setSelectedBook(null)}
+      />
+    );
   }
 
   return (
@@ -49,7 +55,7 @@ export default function HomePage() {
         読書好きが本音でつながる、みんなの本棚型レビューサービス
       </p>
 
-      <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+      <form onSubmit={(e) => { e.preventDefault(); loadBooks(keyword); }} style={{ display: "flex", gap: 8, marginBottom: 24 }}>
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
@@ -83,20 +89,23 @@ export default function HomePage() {
 
       <div style={{ display: "grid", gap: 12 }}>
         {books.map((book) => (
-          <div
+          <button
             key={book.id}
+            onClick={() => setSelectedBook(book)}
             style={{
+              textAlign: "left",
               border: "1px solid #ddd",
               borderRadius: 12,
               padding: 16,
               background: "white",
+              cursor: "pointer",
             }}
           >
             <h2 style={{ fontSize: 18, margin: 0 }}>{book.title}</h2>
             <p style={{ margin: "8px 0 0", color: "#666" }}>
               {book.author_name}
             </p>
-          </div>
+          </button>
         ))}
       </div>
     </div>
