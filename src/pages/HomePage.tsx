@@ -9,30 +9,76 @@ type Book = {
 
 export default function HomePage() {
   const [books, setBooks] = useState<Book[]>([]);
+  const [keyword, setKeyword] = useState("");
 
-  useEffect(() => {
-    async function loadBooks() {
-      const { data, error } = await supabase
-        .from("books")
-        .select("id,title,author_name")
-        .limit(20);
+  async function loadBooks(search = "") {
+    let query = supabase
+      .from("books")
+      .select("id,title,author_name")
+      .limit(50);
 
-      if (error) {
-        console.error(error);
-        return;
-      }
-
-      setBooks(data ?? []);
+    if (search.trim()) {
+      query = query.or(
+        `title.ilike.%${search.trim()}%,author_name.ilike.%${search.trim()}%`
+      );
     }
 
+    const { data, error } = await query;
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setBooks(data ?? []);
+  }
+
+  useEffect(() => {
     loadBooks();
   }, []);
 
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    loadBooks(keyword);
+  }
+
   return (
-    <div style={{ padding: 24, fontFamily: "sans-serif" }}>
+    <div style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 720, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, marginBottom: 4 }}>みんなの図書館</h1>
       <p style={{ color: "#666", marginBottom: 24 }}>
         読書好きが本音でつながる、みんなの本棚型レビューサービス
+      </p>
+
+      <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+        <input
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          placeholder="タイトル・著者名で検索"
+          style={{
+            flex: 1,
+            padding: 12,
+            border: "1px solid #ddd",
+            borderRadius: 10,
+            fontSize: 14,
+          }}
+        />
+        <button
+          type="submit"
+          style={{
+            padding: "12px 16px",
+            border: "none",
+            borderRadius: 10,
+            background: "#92400e",
+            color: "white",
+            fontWeight: "bold",
+          }}
+        >
+          検索
+        </button>
+      </form>
+
+      <p style={{ color: "#888", fontSize: 13, marginBottom: 12 }}>
+        {books.length}件
       </p>
 
       <div style={{ display: "grid", gap: 12 }}>
