@@ -13,7 +13,7 @@ type Book = {
 
 export default function App() {
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [page, setPage] = useState<"home" | "profile" | "feed">("home");
+  const [page, setPage] = useState<"home" | "feed" | "profile">("home");
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [viewUserId, setViewUserId] = useState<string | null>(null);
 
@@ -56,6 +56,24 @@ export default function App() {
     setViewUserId(null);
   }
 
+  function goHome() {
+    setPage("home");
+    setSelectedBook(null);
+    setViewUserId(null);
+  }
+
+  function goFeed() {
+    setPage("feed");
+    setSelectedBook(null);
+    setViewUserId(null);
+  }
+
+  function goProfile() {
+    setPage("profile");
+    setSelectedBook(null);
+    setViewUserId(null);
+  }
+
   if (loading) return <div style={{ padding: 24 }}>読み込み中...</div>;
 
   if (!session) {
@@ -91,8 +109,10 @@ export default function App() {
     );
   }
 
+  let content = null;
+
   if (selectedBook) {
-    return (
+    content = (
       <BookDetailPage
         book={selectedBook}
         userId={session.user.id}
@@ -103,10 +123,8 @@ export default function App() {
         }}
       />
     );
-  }
-
-  if (viewUserId) {
-    return (
+  } else if (viewUserId) {
+    content = (
       <ProfilePage
         userId={viewUserId}
         currentUserId={session.user.id}
@@ -114,52 +132,95 @@ export default function App() {
         onBookSelect={setSelectedBook}
       />
     );
+  } else if (page === "feed") {
+    content = (
+      <FollowingFeedPage
+        currentUserId={session.user.id}
+        onBack={goHome}
+        onBookSelect={setSelectedBook}
+        onUserSelect={setViewUserId}
+      />
+    );
+  } else if (page === "profile") {
+    content = (
+      <ProfilePage
+        userId={session.user.id}
+        currentUserId={session.user.id}
+        onBack={goHome}
+        onBookSelect={setSelectedBook}
+      />
+    );
+  } else {
+    content = (
+      <HomePage
+        userId={session.user.id}
+        selectedBook={null}
+        onBookSelect={setSelectedBook}
+        onBack={() => setSelectedBook(null)}
+        onUserClick={(id) => {
+          setSelectedBook(null);
+          setViewUserId(id);
+        }}
+      />
+    );
   }
 
   return (
-    <div>
-      <div
+    <div style={{ minHeight: "100vh", paddingBottom: 76 }}>
+      {content}
+
+      <nav
         style={{
           position: "fixed",
-          right: 16,
-          top: 16,
-          zIndex: 20,
-          display: "flex",
-          gap: 8,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 64,
+          background: "white",
+          borderTop: "1px solid #ddd",
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          zIndex: 50,
         }}
       >
-        <button onClick={() => setPage("home")}>ホーム</button>
-        <button onClick={() => setPage("feed")}>フォロー中</button>
-        <button onClick={() => setPage("profile")}>プロフィール</button>
-        <button onClick={logout}>ログアウト</button>
-      </div>
-
-      {page === "home" ? (
-        <HomePage
-          userId={session.user.id}
-          selectedBook={null}
-          onBookSelect={setSelectedBook}
-          onBack={() => setSelectedBook(null)}
-          onUserClick={(id) => {
-            setSelectedBook(null);
-            setViewUserId(id);
-          }}
-        />
-      ) : page === "feed" ? (
-        <FollowingFeedPage
-          currentUserId={session.user.id}
-          onBack={() => setPage("home")}
-          onBookSelect={setSelectedBook}
-          onUserSelect={setViewUserId}
-        />
-      ) : (
-        <ProfilePage
-          userId={session.user.id}
-          currentUserId={session.user.id}
-          onBack={() => setPage("home")}
-          onBookSelect={setSelectedBook}
-        />
-      )}
+        <NavButton active={page === "home" && !selectedBook && !viewUserId} onClick={goHome}>
+          ホーム
+        </NavButton>
+        <NavButton active={page === "feed" && !selectedBook && !viewUserId} onClick={goFeed}>
+          フォロー中
+        </NavButton>
+        <NavButton active={page === "profile" && !selectedBook && !viewUserId} onClick={goProfile}>
+          プロフィール
+        </NavButton>
+        <NavButton active={false} onClick={logout}>
+          ログアウト
+        </NavButton>
+      </nav>
     </div>
+  );
+}
+
+function NavButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        border: "none",
+        background: active ? "#fef3c7" : "white",
+        color: active ? "#92400e" : "#444",
+        fontWeight: active ? "bold" : "normal",
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
   );
 }
