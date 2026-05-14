@@ -11,8 +11,12 @@ type Book = {
 };
 
 export default function App() {
-  // 🔥 デバッグ用（本番でSupabase URL確認）
+  // 🔥 デバッグ用（Supabase URL & KEY確認）
   console.log("SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL);
+  console.log(
+    "ANON KEY HEAD:",
+    import.meta.env.VITE_SUPABASE_ANON_KEY?.slice(0, 20)
+  );
 
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [page, setPage] = useState<"home" | "profile">("home");
