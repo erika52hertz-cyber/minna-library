@@ -1,4 +1,4 @@
-export default function ProfilePage(
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 type Profile = {
