@@ -70,7 +70,6 @@ export default function ProfilePage({
         <button
           key={review.id}
           onClick={() => {
-            alert("クリックされました");
 
             if (!review.book) {
               alert("本データが見つかりません");
