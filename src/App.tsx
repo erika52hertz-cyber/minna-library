@@ -3,6 +3,7 @@ import { supabase } from "./lib/supabase";
 import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
 import BookDetailPage from "./pages/BookDetailPage";
+import FollowingFeedPage from "./pages/FollowingFeedPage";
 
 type Book = {
   id: string;
@@ -12,7 +13,7 @@ type Book = {
 
 export default function App() {
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [page, setPage] = useState<"home" | "profile">("home");
+  const [page, setPage] = useState<"home" | "profile" | "feed">("home");
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [viewUserId, setViewUserId] = useState<string | null>(null);
 
@@ -117,8 +118,18 @@ export default function App() {
 
   return (
     <div>
-      <div style={{ position: "fixed", right: 16, top: 16, zIndex: 20 }}>
+      <div
+        style={{
+          position: "fixed",
+          right: 16,
+          top: 16,
+          zIndex: 20,
+          display: "flex",
+          gap: 8,
+        }}
+      >
         <button onClick={() => setPage("home")}>ホーム</button>
+        <button onClick={() => setPage("feed")}>フォロー中</button>
         <button onClick={() => setPage("profile")}>プロフィール</button>
         <button onClick={logout}>ログアウト</button>
       </div>
@@ -133,6 +144,13 @@ export default function App() {
             setSelectedBook(null);
             setViewUserId(id);
           }}
+        />
+      ) : page === "feed" ? (
+        <FollowingFeedPage
+          currentUserId={session.user.id}
+          onBack={() => setPage("home")}
+          onBookSelect={setSelectedBook}
+          onUserSelect={setViewUserId}
         />
       ) : (
         <ProfilePage
