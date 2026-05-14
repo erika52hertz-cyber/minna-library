@@ -15,10 +15,11 @@ type Book = {
 
 type Review = {
   id: string;
+  book_id: string;
   rating: number;
   body: string;
   created_at: string;
-  books: Book | null;
+  book: Book | null;
 };
 
 export default function ProfilePage({
@@ -35,7 +36,6 @@ export default function ProfilePage({
 
   useEffect(() => {
     async function load() {
-      // プロフィール取得
       const { data: profileData } = await supabase
         .from("profiles")
         .select("id,username,email")
@@ -44,29 +44,33 @@ export default function ProfilePage({
 
       setProfile(profileData);
 
-      // 🔥 修正ポイント（JOINを明示）
-      const { data: reviewData, error } = await supabase
+      const { data: reviewData, error: reviewError } = await supabase
         .from("reviews")
-        .select(`
-          id,
-          rating,
-          body,
-          created_at,
-          books:book_id (
-            id,
-            title,
-            author_name
-          )
-        `)
+        .select("id,book_id,rating,body,created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error(error);
+      if (reviewError) {
+        console.error(reviewError);
         return;
       }
 
-      setReviews((reviewData ?? []) as Review[]);
+      const reviewsWithBooks = await Promise.all(
+        (reviewData ?? []).map(async (review) => {
+          const { data: bookData } = await supabase
+            .from("books")
+            .select("id,title,author_name")
+            .eq("id", review.book_id)
+            .maybeSingle();
+
+          return {
+            ...review,
+            book: bookData,
+          };
+        })
+      );
+
+      setReviews(reviewsWithBooks as Review[]);
     }
 
     load();
@@ -74,11 +78,11 @@ export default function ProfilePage({
 
   return (
     <div style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
-      <button onClick={onBack}>← 戻る</button>
+      <button onClick={onBack}>← ホームへ戻る</button>
 
       <h1>{profile?.username || profile?.email || "ユーザー"}</h1>
 
-      <h2>レビュー</h2>
+      <h2>自分のレビュー</h2>
 
       {reviews.length === 0 ? (
         <p>まだレビューはありません</p>
@@ -87,9 +91,10 @@ export default function ProfilePage({
           <button
             key={review.id}
             onClick={() => {
-              console.log(review.books); // ← デバッグ用
-              if (review.books) {
-                onBookSelect(review.books);
+              if (review.book) {
+                onBookSelect(review.book);
+              } else {
+                alert("本データが見つかりません");
               }
             }}
             style={{
@@ -99,11 +104,12 @@ export default function ProfilePage({
               padding: 12,
               marginTop: 8,
               border: "1px solid #ddd",
-              cursor: review.books ? "pointer" : "default",
+              background: "white",
+              cursor: "pointer",
             }}
           >
-            <strong>{review.books?.title ?? "不明な本"}</strong>
-            <p>{review.books?.author_name}</p>
+            <strong>{review.book?.title ?? "不明な本"}</strong>
+            <p>{review.book?.author_name}</p>
             <div>
               {"★".repeat(review.rating)}
               {"☆".repeat(5 - review.rating)}

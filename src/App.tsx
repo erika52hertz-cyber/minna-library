@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
+import BookDetailPage from "./pages/BookDetailPage";
 
 type Book = {
   id: string;
@@ -68,6 +69,7 @@ export default function App() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="メール"
+            type="email"
           />
           <input
             value={password}
@@ -81,9 +83,19 @@ export default function App() {
     );
   }
 
+  if (selectedBook) {
+    return (
+      <BookDetailPage
+        book={selectedBook}
+        userId={session.user.id}
+        onBack={() => setSelectedBook(null)}
+      />
+    );
+  }
+
   return (
     <>
-      <div style={{ position: "fixed", right: 16, top: 16 }}>
+      <div style={{ position: "fixed", right: 16, top: 16, zIndex: 20 }}>
         <button onClick={() => setPage("profile")}>プロフィール</button>
         <button onClick={logout}>ログアウト</button>
       </div>
@@ -91,7 +103,7 @@ export default function App() {
       {page === "home" ? (
         <HomePage
           userId={session.user.id}
-          selectedBook={selectedBook}
+          selectedBook={null}
           onBookSelect={setSelectedBook}
           onBack={() => setSelectedBook(null)}
         />
@@ -99,10 +111,7 @@ export default function App() {
         <ProfilePage
           userId={session.user.id}
           onBack={() => setPage("home")}
-          onBookSelect={(book) => {
-            setSelectedBook(book);
-            setPage("home");
-          }}
+          onBookSelect={setSelectedBook}
         />
       )}
     </>
