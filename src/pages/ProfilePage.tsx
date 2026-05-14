@@ -38,21 +38,24 @@ export default function ProfilePage({
     load();
   }, [userId]);
 
-  async function openBook(book_id: string) {
-    const { data } = await supabase
-      .from("books")
-      .select("id,title,author_name")
-      .eq("id", book_id)
-      .single();
+ async function openBook(book_id: string) {
+  console.log("クリックされた book_id:", book_id);
 
-    console.log("book取得:", data);
+  const { data } = await supabase
+    .from("books")
+    .select("id,title,author_name")
+    .eq("id", book_id)
+    .single();
 
-    if (data) {
-      onBookSelect(data);
-    } else {
-      alert("本が見つかりません");
-    }
+  console.log("取得した本:", data);
+
+  if (data) {
+    console.log("onBookSelect 実行");
+    onBookSelect(data);
+  } else {
+    alert("本が見つかりません");
   }
+}
 
   return (
     <div style={{ padding: 24 }}>
