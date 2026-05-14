@@ -9,11 +9,16 @@ type Book = {
 
 type Review = {
   id: string;
+  user_id: string;
   rating: number;
   body: string;
   created_at: string;
   like_count: number;
   liked_by_me: boolean;
+  profile: {
+    username: string | null;
+    email: string | null;
+  } | null;
 };
 
 type Props = {
@@ -30,7 +35,7 @@ export default function BookDetailPage({ book, userId, onBack }: Props) {
   async function loadReviews() {
     const { data: reviewData, error } = await supabase
       .from("reviews")
-      .select("id,rating,body,created_at")
+      .select("id,user_id,rating,body,created_at")
       .eq("book_id", book.id)
       .order("created_at", { ascending: false });
 
@@ -39,8 +44,14 @@ export default function BookDetailPage({ book, userId, onBack }: Props) {
       return;
     }
 
-    const reviewsWithLikes = await Promise.all(
+    const reviewsWithDetails = await Promise.all(
       (reviewData ?? []).map(async (review) => {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username,email")
+          .eq("id", review.user_id)
+          .maybeSingle();
+
         const { count } = await supabase
           .from("review_likes")
           .select("*", { count: "exact", head: true })
@@ -55,13 +66,14 @@ export default function BookDetailPage({ book, userId, onBack }: Props) {
 
         return {
           ...review,
+          profile,
           like_count: count ?? 0,
           liked_by_me: !!myLike,
         };
       })
     );
 
-    setReviews(reviewsWithLikes);
+    setReviews(reviewsWithDetails);
   }
 
   useEffect(() => {
@@ -173,39 +185,57 @@ export default function BookDetailPage({ book, userId, onBack }: Props) {
         {reviews.length === 0 ? (
           <p style={{ color: "#777" }}>まだレビューはありません。</p>
         ) : (
-          reviews.map((review) => (
-            <div
-              key={review.id}
-              style={{
-                border: "1px solid #eee",
-                borderRadius: 12,
-                padding: 16,
-                marginTop: 12,
-                background: "white",
-              }}
-            >
-              <div>
-                {"★".repeat(review.rating)}
-                {"☆".repeat(5 - review.rating)}
-              </div>
+          reviews.map((review) => {
+            const displayName =
+              review.profile?.username ||
+              review.profile?.email ||
+              "ユーザー";
 
-              <p>{review.body}</p>
+            const isMine = review.user_id === userId;
 
-              <button
-                onClick={() => toggleLike(review)}
+            return (
+              <div
+                key={review.id}
                 style={{
-                  marginTop: 8,
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  border: "1px solid #ddd",
-                  background: review.liked_by_me ? "#fef3c7" : "white",
-                  cursor: "pointer",
+                  border: "1px solid #eee",
+                  borderRadius: 12,
+                  padding: 16,
+                  marginTop: 12,
+                  background: "white",
                 }}
               >
-                {review.liked_by_me ? "♥ いいね済み" : "♡ いいね"} {review.like_count}
-              </button>
-            </div>
-          ))
+                <div style={{ fontSize: 13, color: "#666", marginBottom: 6 }}>
+                  {displayName}
+                  {isMine && (
+                    <span style={{ marginLeft: 8, color: "#92400e" }}>
+                      自分のレビュー
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  {"★".repeat(review.rating)}
+                  {"☆".repeat(5 - review.rating)}
+                </div>
+
+                <p>{review.body}</p>
+
+                <button
+                  onClick={() => toggleLike(review)}
+                  style={{
+                    marginTop: 8,
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    border: "1px solid #ddd",
+                    background: review.liked_by_me ? "#fef3c7" : "white",
+                    cursor: "pointer",
+                  }}
+                >
+                  {review.liked_by_me ? "♥ いいね済み" : "♡ いいね"} {review.like_count}
+                </button>
+              </div>
+            );
+          })
         )}
       </section>
     </div>
