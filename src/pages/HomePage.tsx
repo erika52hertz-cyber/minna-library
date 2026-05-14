@@ -13,11 +13,13 @@ export default function HomePage({
   selectedBook,
   onBookSelect,
   onBack,
+  onUserClick,
 }: {
   userId: string;
   selectedBook: Book | null;
   onBookSelect: (book: Book) => void;
   onBack: () => void;
+  onUserClick: (userId: string) => void;
 }) {
   const [books, setBooks] = useState<Book[]>([]);
 
@@ -34,13 +36,13 @@ export default function HomePage({
     loadBooks();
   }, []);
 
-  // 🔥 ここが今回の核心（詳細表示）
   if (selectedBook) {
     return (
       <BookDetailPage
         book={selectedBook}
         userId={userId}
         onBack={onBack}
+        onUserClick={onUserClick}
       />
     );
   }
