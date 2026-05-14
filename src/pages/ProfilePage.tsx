@@ -7,23 +7,28 @@ type Profile = {
   email: string | null;
 };
 
+type Book = {
+  id: string;
+  title: string;
+  author_name: string;
+};
+
 type Review = {
   id: string;
   rating: number;
   body: string;
   created_at: string;
-  books: {
-    title: string;
-    author_name: string;
-  } | null;
+  books: Book | null;
 };
 
 export default function ProfilePage({
   userId,
   onBack,
+  onBookSelect,
 }: {
   userId: string;
   onBack: () => void;
+  onBookSelect: (book: Book) => void;
 }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -40,7 +45,7 @@ export default function ProfilePage({
 
       const { data: reviewData, error } = await supabase
         .from("reviews")
-        .select("id,rating,body,created_at,books(title,author_name)")
+        .select("id,rating,body,created_at,books(id,title,author_name)")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
@@ -83,14 +88,18 @@ export default function ProfilePage({
           <p style={{ color: "#777" }}>まだレビューはありません。</p>
         ) : (
           reviews.map((review) => (
-            <div
+            <button
               key={review.id}
+              onClick={() => review.books && onBookSelect(review.books)}
               style={{
+                width: "100%",
+                textAlign: "left",
                 border: "1px solid #eee",
                 borderRadius: 12,
                 padding: 16,
                 marginTop: 12,
                 background: "white",
+                cursor: review.books ? "pointer" : "default",
               }}
             >
               <strong>{review.books?.title ?? "不明な本"}</strong>
@@ -102,7 +111,7 @@ export default function ProfilePage({
                 {"☆".repeat(5 - review.rating)}
               </div>
               <p>{review.body}</p>
-            </div>
+            </button>
           ))
         )}
       </section>

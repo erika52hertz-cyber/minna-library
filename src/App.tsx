@@ -3,9 +3,16 @@ import { supabase } from "./lib/supabase";
 import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
 
+type Book = {
+  id: string;
+  title: string;
+  author_name: string;
+};
+
 export default function App() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [page, setPage] = useState<"home" | "profile">("home");
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [session, setSession] = useState<any>(null);
@@ -40,6 +47,7 @@ export default function App() {
   async function logout() {
     await supabase.auth.signOut();
     setPage("home");
+    setSelectedBook(null);
   }
 
   if (loading) {
@@ -94,7 +102,14 @@ export default function App() {
       {page === "home" ? (
         <HomePage userId={session.user.id} />
       ) : (
-        <ProfilePage userId={session.user.id} onBack={() => setPage("home")} />
+        <ProfilePage
+          userId={session.user.id}
+          onBack={() => setPage("home")}
+          onBookSelect={(book) => {
+            setSelectedBook(book);
+            setPage("home");
+          }}
+        />
       )}
     </>
   );
