@@ -22,19 +22,35 @@ export default function HomePage({
   onUserClick: (userId: string) => void;
 }) {
   const [books, setBooks] = useState<Book[]>([]);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
-    async function loadBooks() {
-      const { data } = await supabase
-        .from("books")
-        .select("id,title,author_name")
-        .limit(50);
-
-      setBooks(data ?? []);
-    }
-
     loadBooks();
   }, []);
+
+  async function loadBooks() {
+    const { data } = await supabase
+      .from("books")
+      .select("id,title,author_name")
+      .limit(50);
+
+    setBooks(data ?? []);
+  }
+
+  async function searchBooks(q: string) {
+    if (!q.trim()) {
+      loadBooks();
+      return;
+    }
+
+    const { data } = await supabase
+      .from("books")
+      .select("id,title,author_name")
+      .or(`title.ilike.%${q}%,author_name.ilike.%${q}%`)
+      .limit(50);
+
+    setBooks(data ?? []);
+  }
 
   if (selectedBook) {
     return (
@@ -51,6 +67,25 @@ export default function HomePage({
     <div style={{ padding: 24 }}>
       <h1>みんなの図書館</h1>
 
+      {/* 🔍 検索バー */}
+      <input
+        value={query}
+        onChange={(e) => {
+          const value = e.target.value;
+          setQuery(value);
+          searchBooks(value);
+        }}
+        placeholder="タイトル・著者で検索"
+        style={{
+          width: "100%",
+          padding: 12,
+          borderRadius: 10,
+          border: "1px solid #ddd",
+          marginTop: 12,
+        }}
+      />
+
+      {/* 📚 本一覧 */}
       {books.map((book) => (
         <div
           key={book.id}
@@ -60,9 +95,12 @@ export default function HomePage({
             border: "1px solid #ddd",
             marginTop: 8,
             cursor: "pointer",
+            borderRadius: 8,
+            background: "white",
           }}
         >
-          {book.title} / {book.author_name}
+          <strong>{book.title}</strong>
+          <div style={{ color: "#666" }}>{book.author_name}</div>
         </div>
       ))}
     </div>
