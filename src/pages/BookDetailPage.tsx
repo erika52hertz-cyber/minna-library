@@ -12,6 +12,8 @@ type Review = {
   rating: number;
   body: string;
   created_at: string;
+  like_count: number;
+  liked_by_me: boolean;
 };
 
 type Props = {
@@ -26,7 +28,7 @@ export default function BookDetailPage({ book, userId, onBack }: Props) {
   const [body, setBody] = useState("");
 
   async function loadReviews() {
-    const { data, error } = await supabase
+    const { data: reviewData, error } = await supabase
       .from("reviews")
       .select("id,rating,body,created_at")
       .eq("book_id", book.id)
@@ -37,7 +39,29 @@ export default function BookDetailPage({ book, userId, onBack }: Props) {
       return;
     }
 
-    setReviews(data ?? []);
+    const reviewsWithLikes = await Promise.all(
+      (reviewData ?? []).map(async (review) => {
+        const { count } = await supabase
+          .from("review_likes")
+          .select("*", { count: "exact", head: true })
+          .eq("review_id", review.id);
+
+        const { data: myLike } = await supabase
+          .from("review_likes")
+          .select("id")
+          .eq("review_id", review.id)
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        return {
+          ...review,
+          like_count: count ?? 0,
+          liked_by_me: !!myLike,
+        };
+      })
+    );
+
+    setReviews(reviewsWithLikes);
   }
 
   useEffect(() => {
@@ -46,6 +70,11 @@ export default function BookDetailPage({ book, userId, onBack }: Props) {
 
   async function submitReview(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!body.trim()) {
+      alert("感想を入力してください");
+      return;
+    }
 
     const { error } = await supabase.from("reviews").insert({
       book_id: book.id,
@@ -65,32 +94,120 @@ export default function BookDetailPage({ book, userId, onBack }: Props) {
     loadReviews();
   }
 
+  async function toggleLike(review: Review) {
+    if (review.liked_by_me) {
+      const { error } = await supabase
+        .from("review_likes")
+        .delete()
+        .eq("review_id", review.id)
+        .eq("user_id", userId);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+    } else {
+      const { error } = await supabase.from("review_likes").insert({
+        review_id: review.id,
+        user_id: userId,
+      });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+    }
+
+    loadReviews();
+  }
+
   return (
-    <div style={{ padding: 24 }}>
-      <button onClick={onBack}>戻る</button>
+    <div style={{ padding: 24, maxWidth: 720, margin: "0 auto", fontFamily: "sans-serif" }}>
+      <button onClick={onBack} style={{ marginBottom: 24 }}>
+        ← 戻る
+      </button>
 
-      <h1>{book.title}</h1>
-      <p>{book.author_name}</p>
+      <section style={{ border: "1px solid #ddd", borderRadius: 16, padding: 24, background: "white" }}>
+        <h1 style={{ fontSize: 28, margin: 0 }}>{book.title}</h1>
+        <p style={{ color: "#666" }}>{book.author_name}</p>
+      </section>
 
-      <form onSubmit={submitReview}>
-        <select value={rating} onChange={(e) => setRating(Number(e.target.value))}>
-          {[5, 4, 3, 2, 1].map((n) => (
-            <option key={n} value={n}>
-              {n}★
-            </option>
-          ))}
-        </select>
+      <section style={{ marginTop: 24 }}>
+        <h2>レビュー投稿</h2>
 
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} />
+        <form onSubmit={submitReview} style={{ display: "grid", gap: 12 }}>
+          <select value={rating} onChange={(e) => setRating(Number(e.target.value))}>
+            {[5, 4, 3, 2, 1].map((n) => (
+              <option key={n} value={n}>
+                {n}★
+              </option>
+            ))}
+          </select>
 
-        <button type="submit">投稿</button>
-      </form>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="感想を書く"
+            style={{ padding: 12, borderRadius: 10, border: "1px solid #ddd", minHeight: 90 }}
+          />
 
-      {reviews.map((r) => (
-        <div key={r.id}>
-          {r.body}（{r.rating}★）
-        </div>
-      ))}
+          <button
+            type="submit"
+            style={{
+              padding: 12,
+              borderRadius: 10,
+              border: "none",
+              background: "#92400e",
+              color: "white",
+              fontWeight: "bold",
+            }}
+          >
+            投稿
+          </button>
+        </form>
+      </section>
+
+      <section style={{ marginTop: 24 }}>
+        <h2>レビュー一覧</h2>
+
+        {reviews.length === 0 ? (
+          <p style={{ color: "#777" }}>まだレビューはありません。</p>
+        ) : (
+          reviews.map((review) => (
+            <div
+              key={review.id}
+              style={{
+                border: "1px solid #eee",
+                borderRadius: 12,
+                padding: 16,
+                marginTop: 12,
+                background: "white",
+              }}
+            >
+              <div>
+                {"★".repeat(review.rating)}
+                {"☆".repeat(5 - review.rating)}
+              </div>
+
+              <p>{review.body}</p>
+
+              <button
+                onClick={() => toggleLike(review)}
+                style={{
+                  marginTop: 8,
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  border: "1px solid #ddd",
+                  background: review.liked_by_me ? "#fef3c7" : "white",
+                  cursor: "pointer",
+                }}
+              >
+                {review.liked_by_me ? "♥ いいね済み" : "♡ いいね"} {review.like_count}
+              </button>
+            </div>
+          ))
+        )}
+      </section>
     </div>
   );
 }
