@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 import HomePage from "./pages/HomePage";
+import ProfilePage from "./pages/ProfilePage";
 
 export default function App() {
   const [mode, setMode] = useState<"login" | "signup">("login");
+  const [page, setPage] = useState<"home" | "profile">("home");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [session, setSession] = useState<any>(null);
@@ -32,12 +34,12 @@ export default function App() {
 
     if (result.error) {
       alert(result.error.message);
-      return;
     }
   }
 
   async function logout() {
     await supabase.auth.signOut();
+    setPage("home");
   }
 
   if (loading) {
@@ -49,9 +51,6 @@ export default function App() {
       <div style={{ minHeight: "100vh", background: "#fafaf9", padding: 24, fontFamily: "sans-serif" }}>
         <div style={{ maxWidth: 420, margin: "80px auto", background: "white", padding: 24, borderRadius: 18 }}>
           <h1>みんなの図書館</h1>
-          <p style={{ color: "#666" }}>
-            {mode === "login" ? "ログインしてください" : "新規登録してください"}
-          </p>
 
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
             <button onClick={() => setMode("login")}>ログイン</button>
@@ -87,22 +86,16 @@ export default function App() {
 
   return (
     <>
-      <button
-        onClick={logout}
-        style={{
-          position: "fixed",
-          right: 16,
-          top: 16,
-          zIndex: 20,
-          padding: "8px 12px",
-          borderRadius: 999,
-          border: "1px solid #ddd",
-          background: "white",
-        }}
-      >
-        ログアウト
-      </button>
-      <HomePage userId={session.user.id} />
+      <div style={{ position: "fixed", right: 16, top: 16, zIndex: 20, display: "flex", gap: 8 }}>
+        <button onClick={() => setPage("profile")}>プロフィール</button>
+        <button onClick={logout}>ログアウト</button>
+      </div>
+
+      {page === "home" ? (
+        <HomePage userId={session.user.id} />
+      ) : (
+        <ProfilePage userId={session.user.id} onBack={() => setPage("home")} />
+      )}
     </>
   );
 }
