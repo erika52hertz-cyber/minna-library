@@ -35,6 +35,7 @@ export default function ProfilePage({
 
   useEffect(() => {
     async function load() {
+      // プロフィール取得
       const { data: profileData } = await supabase
         .from("profiles")
         .select("id,username,email")
@@ -43,9 +44,20 @@ export default function ProfilePage({
 
       setProfile(profileData);
 
+      // 🔥 修正ポイント（JOINを明示）
       const { data: reviewData, error } = await supabase
         .from("reviews")
-        .select("id,rating,body,created_at,books(id,title,author_name)")
+        .select(`
+          id,
+          rating,
+          body,
+          created_at,
+          books:book_id (
+            id,
+            title,
+            author_name
+          )
+        `)
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
@@ -61,60 +73,45 @@ export default function ProfilePage({
   }, [userId]);
 
   return (
-    <div style={{ padding: 24, maxWidth: 720, margin: "0 auto", fontFamily: "sans-serif" }}>
-      <button onClick={onBack} style={{ marginBottom: 24 }}>
-        ← ホームへ戻る
-      </button>
+    <div style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
+      <button onClick={onBack}>← 戻る</button>
 
-      <section
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 16,
-          padding: 24,
-          background: "white",
-          marginBottom: 24,
-        }}
-      >
-        <h1 style={{ margin: 0 }}>
-          {profile?.username || profile?.email || "ユーザー"}
-        </h1>
-        <p style={{ color: "#666" }}>投稿レビュー: {reviews.length}件</p>
-      </section>
+      <h1>{profile?.username || profile?.email || "ユーザー"}</h1>
 
-      <section>
-        <h2>自分のレビュー</h2>
+      <h2>レビュー</h2>
 
-        {reviews.length === 0 ? (
-          <p style={{ color: "#777" }}>まだレビューはありません。</p>
-        ) : (
-          reviews.map((review) => (
-            <button
-              key={review.id}
-              onClick={() => review.books && onBookSelect(review.books)}
-              style={{
-                width: "100%",
-                textAlign: "left",
-                border: "1px solid #eee",
-                borderRadius: 12,
-                padding: 16,
-                marginTop: 12,
-                background: "white",
-                cursor: review.books ? "pointer" : "default",
-              }}
-            >
-              <strong>{review.books?.title ?? "不明な本"}</strong>
-              <p style={{ color: "#666", margin: "4px 0" }}>
-                {review.books?.author_name}
-              </p>
-              <div>
-                {"★".repeat(review.rating)}
-                {"☆".repeat(5 - review.rating)}
-              </div>
-              <p>{review.body}</p>
-            </button>
-          ))
-        )}
-      </section>
+      {reviews.length === 0 ? (
+        <p>まだレビューはありません</p>
+      ) : (
+        reviews.map((review) => (
+          <button
+            key={review.id}
+            onClick={() => {
+              console.log(review.books); // ← デバッグ用
+              if (review.books) {
+                onBookSelect(review.books);
+              }
+            }}
+            style={{
+              display: "block",
+              width: "100%",
+              textAlign: "left",
+              padding: 12,
+              marginTop: 8,
+              border: "1px solid #ddd",
+              cursor: review.books ? "pointer" : "default",
+            }}
+          >
+            <strong>{review.books?.title ?? "不明な本"}</strong>
+            <p>{review.books?.author_name}</p>
+            <div>
+              {"★".repeat(review.rating)}
+              {"☆".repeat(5 - review.rating)}
+            </div>
+            <p>{review.body}</p>
+          </button>
+        ))
+      )}
     </div>
   );
 }
