@@ -63,7 +63,7 @@ export default function ProfilePage({
     <div style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
       <button onClick={onBack}>← ホームへ戻る</button>
 
-      <h1>プロフィール</h1>
+      <h1>プロフィール 修正版 2026-05-14</h1>
       <h2>自分のレビュー</h2>
 
       {reviews.map((review) => (
