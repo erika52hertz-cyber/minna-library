@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
-type Profile = {
-  id: string;
-  username: string | null;
-  email: string | null;
-};
-
 type Book = {
   id: string;
   title: string;
@@ -18,8 +12,6 @@ type Review = {
   book_id: string;
   rating: number;
   body: string;
-  created_at: string;
-  book: Book | null;
 };
 
 export default function ProfilePage({
@@ -31,93 +23,58 @@ export default function ProfilePage({
   onBack: () => void;
   onBookSelect: (book: Book) => void;
 }) {
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
 
   useEffect(() => {
     async function load() {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id,username,email")
-        .eq("id", userId)
-        .maybeSingle();
-
-      setProfile(profileData);
-
-      const { data: reviewData, error: reviewError } = await supabase
+      const { data } = await supabase
         .from("reviews")
-        .select("id,book_id,rating,body,created_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .select("id,book_id,rating,body")
+        .eq("user_id", userId);
 
-      if (reviewError) {
-        console.error(reviewError);
-        return;
-      }
-
-      const reviewsWithBooks = await Promise.all(
-        (reviewData ?? []).map(async (review) => {
-          const { data: bookData } = await supabase
-            .from("books")
-            .select("id,title,author_name")
-            .eq("id", review.book_id)
-            .maybeSingle();
-
-          return {
-            ...review,
-            book: bookData,
-          };
-        })
-      );
-
-      setReviews(reviewsWithBooks as Review[]);
+      setReviews(data ?? []);
     }
 
     load();
   }, [userId]);
 
-  return (
-    <div style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
-      <button onClick={onBack}>← ホームへ戻る</button>
+  async function openBook(book_id: string) {
+    const { data } = await supabase
+      .from("books")
+      .select("id,title,author_name")
+      .eq("id", book_id)
+      .single();
 
-      <h1>{profile?.username || profile?.email || "ユーザー"}</h1>
+    console.log("book取得:", data);
+
+    if (data) {
+      onBookSelect(data);
+    } else {
+      alert("本が見つかりません");
+    }
+  }
+
+  return (
+    <div style={{ padding: 24 }}>
+      <button onClick={onBack}>← 戻る</button>
 
       <h2>自分のレビュー</h2>
 
-      {reviews.length === 0 ? (
-        <p>まだレビューはありません</p>
-      ) : (
-        reviews.map((review) => (
-          <button
-            key={review.id}
-            onClick={() => {
-              if (review.book) {
-                onBookSelect(review.book);
-              } else {
-                alert("本データが見つかりません");
-              }
-            }}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: 12,
-              marginTop: 8,
-              border: "1px solid #ddd",
-              background: "white",
-              cursor: "pointer",
-            }}
-          >
-            <strong>{review.book?.title ?? "不明な本"}</strong>
-            <p>{review.book?.author_name}</p>
-            <div>
-              {"★".repeat(review.rating)}
-              {"☆".repeat(5 - review.rating)}
-            </div>
-            <p>{review.body}</p>
-          </button>
-        ))
-      )}
+      {reviews.map((r) => (
+        <div
+          key={r.id}
+          onClick={() => openBook(r.book_id)}
+          style={{
+            border: "1px solid #ddd",
+            padding: 12,
+            marginTop: 8,
+            cursor: "pointer",
+          }}
+        >
+          <div>{"★".repeat(r.rating)}</div>
+          <p>{r.body}</p>
+        </div>
+      ))}
     </div>
   );
 }
