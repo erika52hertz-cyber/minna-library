@@ -21,6 +21,19 @@ type Review = {
   book: Book | null;
 };
 
+type UserBook = {
+  id: string;
+  status: string;
+  book: Book | null;
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  finished: "読破",
+  reading: "読書中",
+  want: "積読",
+  owned: "購入予定",
+};
+
 export default function ProfilePage({
   userId,
   currentUserId,
@@ -35,6 +48,7 @@ export default function ProfilePage({
   const [profile, setProfile] = useState<Profile | null>(null);
   const [username, setUsername] = useState("");
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [userBooks, setUserBooks] = useState<UserBook[]>([]);
   const [saving, setSaving] = useState(false);
 
   const [isFollowing, setIsFollowing] = useState(false);
@@ -42,6 +56,13 @@ export default function ProfilePage({
   const [followingCount, setFollowingCount] = useState(0);
 
   const isMe = userId === currentUserId;
+
+  useEffect(() => {
+    loadProfile();
+    loadReviews();
+    loadUserBooks();
+    loadFollowState();
+  }, [userId, currentUserId]);
 
   async function loadProfile() {
     const { data } = await supabase
@@ -80,6 +101,36 @@ export default function ProfilePage({
     setReviews(withBooks);
   }
 
+  async function loadUserBooks() {
+    const { data, error } = await supabase
+      .from("user_books")
+      .select("id,status,book_id")
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const withBooks = await Promise.all(
+      (data ?? []).map(async (item) => {
+        const { data: book } = await supabase
+          .from("books")
+          .select("id,title,author_name")
+          .eq("id", item.book_id)
+          .maybeSingle();
+
+        return {
+          id: item.id,
+          status: item.status,
+          book,
+        };
+      })
+    );
+
+    setUserBooks(withBooks);
+  }
+
   async function loadFollowState() {
     const { count: followers } = await supabase
       .from("follows")
@@ -105,12 +156,6 @@ export default function ProfilePage({
       setIsFollowing(!!data);
     }
   }
-
-  useEffect(() => {
-    loadProfile();
-    loadReviews();
-    loadFollowState();
-  }, [userId, currentUserId]);
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -229,6 +274,38 @@ export default function ProfilePage({
               {saving ? "保存中..." : "プロフィールを保存"}
             </button>
           </form>
+        )}
+      </section>
+
+      <section style={{ marginTop: 24 }}>
+        <h2>読書ステータス</h2>
+
+        {userBooks.length === 0 ? (
+          <p style={{ color: "#777" }}>まだ登録された本はありません。</p>
+        ) : (
+          userBooks.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => item.book && onBookSelect(item.book)}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: 16,
+                marginTop: 12,
+                border: "1px solid #ddd",
+                borderRadius: 12,
+                background: "white",
+                cursor: item.book ? "pointer" : "default",
+              }}
+            >
+              <strong>{item.book?.title ?? "不明な本"}</strong>
+              <p>{item.book?.author_name}</p>
+              <span style={{ color: "#92400e", fontWeight: "bold" }}>
+                {STATUS_LABELS[item.status] ?? item.status}
+              </span>
+            </button>
+          ))
         )}
       </section>
 
