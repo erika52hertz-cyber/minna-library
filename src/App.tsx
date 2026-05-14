@@ -11,14 +11,6 @@ type Book = {
 };
 
 export default function App() {
-  console.log("SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL);
-  console.log(
-    "ANON KEY CHECK:",
-    import.meta.env.VITE_SUPABASE_ANON_KEY?.slice(0, 30),
-    "...",
-    import.meta.env.VITE_SUPABASE_ANON_KEY?.slice(-10)
-  );
-
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [page, setPage] = useState<"home" | "profile">("home");
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
@@ -63,9 +55,7 @@ export default function App() {
     setViewUserId(null);
   }
 
-  if (loading) {
-    return <div style={{ padding: 24 }}>読み込み中...</div>;
-  }
+  if (loading) return <div style={{ padding: 24 }}>読み込み中...</div>;
 
   if (!session) {
     return (
@@ -118,6 +108,7 @@ export default function App() {
     return (
       <ProfilePage
         userId={viewUserId}
+        currentUserId={session.user.id}
         onBack={() => setViewUserId(null)}
         onBookSelect={setSelectedBook}
       />
@@ -126,7 +117,7 @@ export default function App() {
 
   return (
     <div>
-      <div style={{ position: "fixed", right: 16, top: 16 }}>
+      <div style={{ position: "fixed", right: 16, top: 16, zIndex: 20 }}>
         <button onClick={() => setPage("home")}>ホーム</button>
         <button onClick={() => setPage("profile")}>プロフィール</button>
         <button onClick={logout}>ログアウト</button>
@@ -146,6 +137,7 @@ export default function App() {
       ) : (
         <ProfilePage
           userId={session.user.id}
+          currentUserId={session.user.id}
           onBack={() => setPage("home")}
           onBookSelect={setSelectedBook}
         />

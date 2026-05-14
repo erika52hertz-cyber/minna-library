@@ -23,10 +23,12 @@ type Review = {
 
 export default function ProfilePage({
   userId,
+  currentUserId,
   onBack,
   onBookSelect,
 }: {
   userId: string;
+  currentUserId: string;
   onBack: () => void;
   onBookSelect: (book: Book) => void;
 }) {
@@ -34,6 +36,12 @@ export default function ProfilePage({
   const [username, setUsername] = useState("");
   const [reviews, setReviews] = useState<Review[]>([]);
   const [saving, setSaving] = useState(false);
+
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+
+  const isMe = userId === currentUserId;
 
   async function loadProfile() {
     const { data } = await supabase
@@ -65,20 +73,44 @@ export default function ProfilePage({
           .eq("id", review.book_id)
           .maybeSingle();
 
-        return {
-          ...review,
-          book,
-        };
+        return { ...review, book };
       })
     );
 
     setReviews(withBooks);
   }
 
+  async function loadFollowState() {
+    const { count: followers } = await supabase
+      .from("follows")
+      .select("*", { count: "exact", head: true })
+      .eq("following_id", userId);
+
+    const { count: following } = await supabase
+      .from("follows")
+      .select("*", { count: "exact", head: true })
+      .eq("follower_id", userId);
+
+    setFollowersCount(followers ?? 0);
+    setFollowingCount(following ?? 0);
+
+    if (!isMe) {
+      const { data } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", currentUserId)
+        .eq("following_id", userId)
+        .maybeSingle();
+
+      setIsFollowing(!!data);
+    }
+  }
+
   useEffect(() => {
     loadProfile();
     loadReviews();
-  }, [userId]);
+    loadFollowState();
+  }, [userId, currentUserId]);
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -90,13 +122,11 @@ export default function ProfilePage({
 
     setSaving(true);
 
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({
-        id: userId,
-        username: username.trim(),
-        email: profile?.email ?? null,
-      });
+    const { error } = await supabase.from("profiles").upsert({
+      id: currentUserId,
+      username: username.trim(),
+      email: profile?.email ?? null,
+    });
 
     setSaving(false);
 
@@ -109,9 +139,36 @@ export default function ProfilePage({
     loadProfile();
   }
 
+  async function toggleFollow() {
+    if (isFollowing) {
+      const { error } = await supabase
+        .from("follows")
+        .delete()
+        .eq("follower_id", currentUserId)
+        .eq("following_id", userId);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+    } else {
+      const { error } = await supabase.from("follows").insert({
+        follower_id: currentUserId,
+        following_id: userId,
+      });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+    }
+
+    await loadFollowState();
+  }
+
   return (
     <div style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
-      <button onClick={onBack}>← ホームへ戻る</button>
+      <button onClick={onBack}>← 戻る</button>
 
       <section
         style={{
@@ -122,43 +179,61 @@ export default function ProfilePage({
           marginTop: 20,
         }}
       >
-        <h1>プロフィール</h1>
+        <h1>{profile?.username || profile?.email || "ユーザー"}</h1>
 
         <p style={{ color: "#666" }}>
-          現在の表示名：{profile?.username || "未設定"}
+          フォロワー: {followersCount} / フォロー中: {followingCount}
         </p>
 
-        <form onSubmit={saveProfile} style={{ display: "grid", gap: 8 }}>
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="ユーザー名"
-            style={{
-              padding: 10,
-              border: "1px solid #ddd",
-              borderRadius: 8,
-            }}
-          />
-
+        {!isMe && (
           <button
-            type="submit"
-            disabled={saving}
+            onClick={toggleFollow}
             style={{
-              padding: 10,
-              border: "none",
-              borderRadius: 8,
-              background: "#92400e",
-              color: "white",
-              fontWeight: "bold",
+              padding: "8px 14px",
+              borderRadius: 999,
+              border: "1px solid #ddd",
+              background: isFollowing ? "white" : "#92400e",
+              color: isFollowing ? "#333" : "white",
+              cursor: "pointer",
             }}
           >
-            {saving ? "保存中..." : "プロフィールを保存"}
+            {isFollowing ? "フォロー解除" : "フォロー"}
           </button>
-        </form>
+        )}
+
+        {isMe && (
+          <form onSubmit={saveProfile} style={{ display: "grid", gap: 8 }}>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="ユーザー名"
+              style={{
+                padding: 10,
+                border: "1px solid #ddd",
+                borderRadius: 8,
+              }}
+            />
+
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                padding: 10,
+                border: "none",
+                borderRadius: 8,
+                background: "#92400e",
+                color: "white",
+                fontWeight: "bold",
+              }}
+            >
+              {saving ? "保存中..." : "プロフィールを保存"}
+            </button>
+          </form>
+        )}
       </section>
 
       <section style={{ marginTop: 24 }}>
-        <h2>自分のレビュー</h2>
+        <h2>{isMe ? "自分のレビュー" : "このユーザーのレビュー"}</h2>
 
         {reviews.length === 0 ? (
           <p>まだレビューはありません</p>
@@ -167,9 +242,7 @@ export default function ProfilePage({
             <button
               key={review.id}
               onClick={() => {
-                if (review.book) {
-                  onBookSelect(review.book);
-                }
+                if (review.book) onBookSelect(review.book);
               }}
               style={{
                 display: "block",
