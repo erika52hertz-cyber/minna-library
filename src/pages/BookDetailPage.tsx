@@ -25,9 +25,15 @@ type Props = {
   book: Book;
   userId: string;
   onBack: () => void;
+  onUserClick: (userId: string) => void;
 };
 
-export default function BookDetailPage({ book, userId, onBack }: Props) {
+export default function BookDetailPage({
+  book,
+  userId,
+  onBack,
+  onUserClick,
+}: Props) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [rating, setRating] = useState(5);
   const [body, setBody] = useState("");
@@ -204,14 +210,23 @@ export default function BookDetailPage({ book, userId, onBack }: Props) {
                   background: "white",
                 }}
               >
-                <div style={{ fontSize: 13, color: "#666", marginBottom: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => onUserClick(review.user_id)}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    padding: 0,
+                    marginBottom: 6,
+                    fontSize: 13,
+                    color: "#2563eb",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
                   {displayName}
-                  {isMine && (
-                    <span style={{ marginLeft: 8, color: "#92400e" }}>
-                      自分のレビュー
-                    </span>
-                  )}
-                </div>
+                  {isMine ? "（自分）" : ""}
+                </button>
 
                 <div>
                   {"★".repeat(review.rating)}

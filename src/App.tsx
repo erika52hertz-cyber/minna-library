@@ -11,18 +11,10 @@ type Book = {
 };
 
 export default function App() {
-  // 🔥 環境変数チェック（ここが最重要）
-  console.log("SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL);
-  console.log(
-    "ANON KEY CHECK:",
-    import.meta.env.VITE_SUPABASE_ANON_KEY?.slice(0, 30),
-    "...",
-    import.meta.env.VITE_SUPABASE_ANON_KEY?.slice(-10)
-  );
-
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [page, setPage] = useState<"home" | "profile">("home");
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [viewUserId, setViewUserId] = useState<string | null>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,50 +43,34 @@ export default function App() {
         ? await supabase.auth.signInWithPassword({ email, password })
         : await supabase.auth.signUp({ email, password });
 
-    if (result.error) {
-      alert(result.error.message);
-    }
+    if (result.error) alert(result.error.message);
   }
 
   async function logout() {
     await supabase.auth.signOut();
     setPage("home");
     setSelectedBook(null);
+    setViewUserId(null);
   }
 
-  if (loading) {
-    return <div style={{ padding: 24 }}>読み込み中...</div>;
-  }
+  if (loading) return <div>読み込み中...</div>;
 
-  // 🔐 未ログイン
   if (!session) {
     return (
       <div style={{ padding: 24 }}>
         <h1>みんなの図書館</h1>
 
-        <div style={{ marginBottom: 12 }}>
-          <button onClick={() => setMode("login")}>ログイン</button>
-          <button onClick={() => setMode("signup")}>新規登録</button>
-        </div>
+        <button onClick={() => setMode("login")}>ログイン</button>
+        <button onClick={() => setMode("signup")}>新規登録</button>
 
         <form onSubmit={submit}>
-          <input
-            type="email"
-            placeholder="メール"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <br />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} />
           <input
             type="password"
-            placeholder="パスワード"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <br />
-          <button type="submit">
-            {mode === "login" ? "ログイン" : "登録"}
-          </button>
+          <button type="submit">送信</button>
         </form>
       </div>
     );
@@ -107,17 +83,26 @@ export default function App() {
         book={selectedBook}
         userId={session.user.id}
         onBack={() => setSelectedBook(null)}
+        onUserClick={(id) => setViewUserId(id)}
       />
     );
   }
 
-  // 🏠 メイン画面
+  // 👤 他人プロフィール
+  if (viewUserId) {
+    return (
+      <ProfilePage
+        userId={viewUserId}
+        onBack={() => setViewUserId(null)}
+        onBookSelect={setSelectedBook}
+      />
+    );
+  }
+
   return (
     <div>
-      <div style={{ position: "fixed", right: 16, top: 16 }}>
-        <button onClick={() => setPage("profile")}>プロフィール</button>
-        <button onClick={logout}>ログアウト</button>
-      </div>
+      <button onClick={() => setPage("profile")}>自分のプロフィール</button>
+      <button onClick={logout}>ログアウト</button>
 
       {page === "home" ? (
         <HomePage
