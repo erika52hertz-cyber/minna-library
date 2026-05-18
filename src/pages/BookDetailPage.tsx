@@ -5,6 +5,12 @@ type Book = {
   id: string;
   title: string;
   author_name: string;
+  genre?: string | null;
+  cover_url?: string | null;
+  page_count?: number | null;
+  published_year?: number | null;
+  description?: string | null;
+  affiliate_url?: string | null;
 };
 
 type SortMode = "new" | "likes";
@@ -43,25 +49,40 @@ export default function BookDetailPage({
   onBack,
   onUserClick,
 }: Props) {
+  const [bookDetail, setBookDetail] = useState<Book>(book);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [rating, setRating] = useState(5);
   const [body, setBody] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("new");
 
   const [status, setStatus] = useState("");
-  const [pages, setPages] = useState("");
   const [finishedDate, setFinishedDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
+  const [recordReviewBody, setRecordReviewBody] = useState("");
+  const [recordReviewRating, setRecordReviewRating] = useState(5);
 
   const [isBusinessCardBook, setIsBusinessCardBook] = useState(false);
   const [businessCount, setBusinessCount] = useState(0);
 
   useEffect(() => {
+    loadBookDetail();
     loadReviews();
     loadStatus();
     loadBusinessCardState();
   }, [book.id]);
+
+  async function loadBookDetail() {
+    const { data } = await supabase
+      .from("books")
+      .select(
+        "id,title,author_name,genre,cover_url,page_count,published_year,description,affiliate_url"
+      )
+      .eq("id", book.id)
+      .maybeSingle();
+
+    if (data) setBookDetail(data as Book);
+  }
 
   async function loadStatus() {
     const { data } = await supabase
@@ -93,7 +114,6 @@ export default function BookDetailPage({
       user_id: userId,
       book_id: book.id,
       finished_date: finishedDate,
-      pages: Number(pages || 0),
     });
 
     if (error) {
@@ -101,8 +121,27 @@ export default function BookDetailPage({
       return;
     }
 
-    alert("読書記録を追加しました");
-    setPages("");
+    await saveStatus("finished");
+
+    if (recordReviewBody.trim()) {
+      const { error: reviewError } = await supabase.from("reviews").insert({
+        book_id: book.id,
+        user_id: userId,
+        rating: recordReviewRating,
+        body: recordReviewBody.trim(),
+      });
+
+      if (reviewError) {
+        alert(reviewError.message);
+        return;
+      }
+
+      setRecordReviewBody("");
+      setRecordReviewRating(5);
+      loadReviews();
+    }
+
+    alert("読了記録を追加しました");
   }
 
   async function loadBusinessCardState() {
@@ -245,6 +284,12 @@ export default function BookDetailPage({
     loadReviews();
   }
 
+  const fallbackPurchaseUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(
+    `${bookDetail.title} ${bookDetail.author_name}`
+  )}`;
+
+  const purchaseUrl = bookDetail.affiliate_url || fallbackPurchaseUrl;
+
   return (
     <main className="page">
       <button className="secondary" onClick={onBack}>
@@ -252,17 +297,80 @@ export default function BookDetailPage({
       </button>
 
       <section className="card" style={{ marginTop: 16 }}>
-        <h1>{book.title}</h1>
-        <p className="muted">{book.author_name}</p>
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+          {bookDetail.cover_url ? (
+            <img
+              src={bookDetail.cover_url}
+              alt={bookDetail.title}
+              style={{
+                width: 96,
+                height: 136,
+                objectFit: "cover",
+                borderRadius: 12,
+                border: "1px solid #e7e5e4",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 96,
+                height: 136,
+                borderRadius: 12,
+                background: "#fef3c7",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#92400e",
+                fontWeight: "bold",
+                flexShrink: 0,
+              }}
+            >
+              No Image
+            </div>
+          )}
 
-        <button
-          onClick={toggleBusinessCardBook}
-          className={isBusinessCardBook ? "secondary" : "primary"}
-        >
-          {isBusinessCardBook
-            ? "名刺がわりの10冊から外す"
-            : `名刺がわりの10冊に追加（${businessCount}/10）`}
-        </button>
+          <div style={{ flex: 1 }}>
+            <h1>{bookDetail.title}</h1>
+            <p className="muted">{bookDetail.author_name}</p>
+
+            <div style={{ display: "grid", gap: 4, marginTop: 12 }}>
+              {bookDetail.published_year && (
+                <div>刊行年：{bookDetail.published_year}年</div>
+              )}
+              {bookDetail.page_count && (
+                <div>ページ数：{bookDetail.page_count}ページ</div>
+              )}
+              {bookDetail.genre && <div>ジャンル：{bookDetail.genre}</div>}
+            </div>
+          </div>
+        </div>
+
+        {bookDetail.description && (
+          <p style={{ marginTop: 16, lineHeight: 1.7 }}>
+            {bookDetail.description}
+          </p>
+        )}
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
+          <a
+            href={purchaseUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="primary"
+            style={{ textDecoration: "none", display: "inline-block" }}
+          >
+            この本を読む
+          </a>
+
+          <button
+            onClick={toggleBusinessCardBook}
+            className={isBusinessCardBook ? "secondary" : "primary"}
+          >
+            {isBusinessCardBook
+              ? "名刺がわりの10冊から外す"
+              : `名刺がわりの10冊に追加（${businessCount}/10）`}
+          </button>
+        </div>
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
@@ -295,19 +403,28 @@ export default function BookDetailPage({
           </label>
 
           <label>
-            ページ数
-            <input
-              className="input"
-              type="number"
-              min="0"
-              value={pages}
-              onChange={(e) => setPages(e.target.value)}
-              placeholder="例：320"
+            任意レビュー
+            <select
+              value={recordReviewRating}
+              onChange={(e) => setRecordReviewRating(Number(e.target.value))}
+            >
+              {[5, 4, 3, 2, 1].map((n) => (
+                <option key={n} value={n}>
+                  {n}★
+                </option>
+              ))}
+            </select>
+
+            <textarea
+              value={recordReviewBody}
+              onChange={(e) => setRecordReviewBody(e.target.value)}
+              placeholder="読了と同時に感想を書く場合はこちら"
+              style={{ minHeight: 80, marginTop: 8 }}
             />
           </label>
 
           <button className="primary" type="submit">
-            記録する
+            読了として記録する
           </button>
         </form>
       </section>
