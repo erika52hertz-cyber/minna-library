@@ -88,21 +88,56 @@ export default function BookDetailPage({
   }
 
   async function updateBookByIsbn() {
-    const cleanIsbn = isbn.replace(/[-\s]/g, "");
+  const cleanIsbn = isbn.replace(/[-\s]/g, "");
 
-    if (!cleanIsbn) {
-      alert("ISBNを入力してください");
-      return;
+  if (!cleanIsbn) {
+    alert("ISBNを入力してください");
+    return;
+  }
+
+  setFetchingBook(true);
+
+  try {
+    let nextData: Partial<Book> | null = null;
+
+    // 1. まず openBD を使う
+    const openbdRes = await fetch(
+      `https://api.openbd.jp/v1/get?isbn=${cleanIsbn}`
+    );
+    const openbdJson = await openbdRes.json();
+    const openbdItem = openbdJson?.[0];
+
+    if (openbdItem) {
+      const summary = openbdItem.summary;
+      const onix = openbdItem.onix;
+
+      const description =
+        onix?.CollateralDetail?.TextContent?.[0]?.Text ?? "";
+
+      nextData = {
+        title: summary?.title || bookDetail.title,
+        author_name: summary?.author || bookDetail.author_name,
+        cover_url: summary?.cover || bookDetail.cover_url || null,
+        published_year: summary?.pubdate
+          ? Number(summary.pubdate.slice(0, 4)) ||
+            bookDetail.published_year ||
+            null
+          : bookDetail.published_year || null,
+        description: description || bookDetail.description || null,
+      };
     }
 
-    setFetchingBook(true);
-
-    try {
-      let nextData: Partial<Book> | null = null;
-
+    // 2. openBDで見つからなければ Google Books
+    if (!nextData) {
       const googleRes = await fetch(
         `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`
       );
+
+      if (googleRes.status === 429) {
+        alert("取得回数が多いため、しばらく待ってから再試行してください。");
+        return;
+      }
+
       const googleJson = await googleRes.json();
       const item = googleJson.items?.[0]?.volumeInfo;
 
@@ -114,69 +149,51 @@ export default function BookDetailPage({
 
         nextData = {
           title: item.title || bookDetail.title,
-          author_name: (item.authors ?? []).join(", ") || bookDetail.author_name,
+          author_name:
+            (item.authors ?? []).join(", ") || bookDetail.author_name,
           description: item.description || bookDetail.description || null,
           page_count: item.pageCount ?? bookDetail.page_count ?? null,
           published_year: item.publishedDate
-            ? Number(item.publishedDate.slice(0, 4)) || bookDetail.published_year || null
+            ? Number(item.publishedDate.slice(0, 4)) ||
+              bookDetail.published_year ||
+              null
             : bookDetail.published_year || null,
-          cover_url: image ? image.replace("http://", "https://") : bookDetail.cover_url || null,
+          cover_url: image
+            ? image.replace("http://", "https://")
+            : bookDetail.cover_url || null,
         };
-      } else {
-        const openbdRes = await fetch(
-          `https://api.openbd.jp/v1/get?isbn=${cleanIsbn}`
-        );
-        const openbdJson = await openbdRes.json();
-        const openbdItem = openbdJson?.[0];
-
-        if (openbdItem) {
-          const summary = openbdItem.summary;
-          const onix = openbdItem.onix;
-
-          const description =
-            onix?.CollateralDetail?.TextContent?.[0]?.Text ?? "";
-
-          nextData = {
-            title: summary?.title || bookDetail.title,
-            author_name: summary?.author || bookDetail.author_name,
-            cover_url: summary?.cover || bookDetail.cover_url || null,
-            published_year: summary?.pubdate
-              ? Number(summary.pubdate.slice(0, 4)) || bookDetail.published_year || null
-              : bookDetail.published_year || null,
-            description: description || bookDetail.description || null,
-          };
-        }
       }
-
-      if (!nextData) {
-        alert("書籍情報が見つかりませんでした");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("books")
-        .update(nextData)
-        .eq("id", book.id)
-        .select(
-          "id,title,author_name,genre,cover_url,page_count,published_year,description,affiliate_url"
-        )
-        .single();
-
-      if (error) {
-        alert(error.message);
-        return;
-      }
-
-      setBookDetail(data as Book);
-      setIsbn("");
-      alert("書籍情報を更新しました");
-    } catch (error) {
-      console.error(error);
-      alert("取得または更新に失敗しました");
-    } finally {
-      setFetchingBook(false);
     }
+
+    if (!nextData) {
+      alert("書籍情報が見つかりませんでした。手入力してください。");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("books")
+      .update(nextData)
+      .eq("id", book.id)
+      .select(
+        "id,title,author_name,genre,cover_url,page_count,published_year,description,affiliate_url"
+      )
+      .single();
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setBookDetail(data as Book);
+    setIsbn("");
+    alert("書籍情報を更新しました");
+  } catch (error) {
+    console.error(error);
+    alert("取得または更新に失敗しました");
+  } finally {
+    setFetchingBook(false);
   }
+}
 
   async function loadStatus() {
     const { data } = await supabase
