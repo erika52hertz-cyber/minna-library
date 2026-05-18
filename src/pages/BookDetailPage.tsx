@@ -47,7 +47,13 @@ export default function BookDetailPage({
   const [rating, setRating] = useState(5);
   const [body, setBody] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("new");
-  const [status, setStatus] = useState<string>("");
+
+  const [status, setStatus] = useState("");
+  const [pages, setPages] = useState("");
+  const [finishedDate, setFinishedDate] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
+
   const [isBusinessCardBook, setIsBusinessCardBook] = useState(false);
   const [businessCount, setBusinessCount] = useState(0);
 
@@ -77,9 +83,26 @@ export default function BookDetailPage({
       status: value,
     });
 
+    if (error) alert(error.message);
+  }
+
+  async function addReadingRecord(e: React.FormEvent) {
+    e.preventDefault();
+
+    const { error } = await supabase.from("reading_records").insert({
+      user_id: userId,
+      book_id: book.id,
+      finished_date: finishedDate,
+      pages: Number(pages || 0),
+    });
+
     if (error) {
       alert(error.message);
+      return;
     }
+
+    alert("読書記録を追加しました");
+    setPages("");
   }
 
   async function loadBusinessCardState() {
@@ -223,24 +246,18 @@ export default function BookDetailPage({
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
-      <button onClick={onBack}>← 戻る</button>
+    <main className="page">
+      <button className="secondary" onClick={onBack}>
+        ← 戻る
+      </button>
 
-      <h1>{book.title}</h1>
-      <p>{book.author_name}</p>
+      <section className="card" style={{ marginTop: 16 }}>
+        <h1>{book.title}</h1>
+        <p className="muted">{book.author_name}</p>
 
-      <section style={{ marginTop: 16 }}>
         <button
           onClick={toggleBusinessCardBook}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 999,
-            border: "1px solid #ddd",
-            background: isBusinessCardBook ? "#fef3c7" : "white",
-            color: isBusinessCardBook ? "#92400e" : "#333",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
+          className={isBusinessCardBook ? "secondary" : "primary"}
         >
           {isBusinessCardBook
             ? "名刺がわりの10冊から外す"
@@ -248,74 +265,118 @@ export default function BookDetailPage({
         </button>
       </section>
 
-      <section style={{ marginTop: 16 }}>
-        <h3>読書ステータス</h3>
-        {STATUS_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => saveStatus(opt.value)}
-            style={{
-              marginRight: 8,
-              marginTop: 6,
-              padding: "6px 10px",
-              borderRadius: 999,
-              border: "1px solid #ddd",
-              background: status === opt.value ? "#92400e" : "white",
-              color: status === opt.value ? "white" : "#333",
-              cursor: "pointer",
-            }}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <section className="card" style={{ marginTop: 16 }}>
+        <h2>読書ステータス</h2>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => saveStatus(opt.value)}
+              className={`tag ${status === opt.value ? "active" : ""}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </section>
 
-      <form onSubmit={submitReview} style={{ marginTop: 20, display: "grid", gap: 8 }}>
-        <h3>レビュー投稿</h3>
+      <section className="card" style={{ marginTop: 16 }}>
+        <h2>読了記録を追加</h2>
 
-        <select value={rating} onChange={(e) => setRating(Number(e.target.value))}>
-          {[5, 4, 3, 2, 1].map((n) => (
-            <option key={n} value={n}>
-              {n}★
-            </option>
-          ))}
-        </select>
+        <form onSubmit={addReadingRecord} style={{ display: "grid", gap: 12 }}>
+          <label>
+            読了日
+            <input
+              className="input"
+              type="date"
+              value={finishedDate}
+              onChange={(e) => setFinishedDate(e.target.value)}
+            />
+          </label>
 
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="感想を書く"
-          style={{ minHeight: 90, padding: 10 }}
-        />
+          <label>
+            ページ数
+            <input
+              className="input"
+              type="number"
+              min="0"
+              value={pages}
+              onChange={(e) => setPages(e.target.value)}
+              placeholder="例：320"
+            />
+          </label>
 
-        <button type="submit">投稿</button>
-      </form>
+          <button className="primary" type="submit">
+            記録する
+          </button>
+        </form>
+      </section>
 
-      <section style={{ marginTop: 24 }}>
-        <h3>レビュー一覧</h3>
+      <section className="card" style={{ marginTop: 16 }}>
+        <h2>レビュー投稿</h2>
+
+        <form onSubmit={submitReview} style={{ display: "grid", gap: 12 }}>
+          <select value={rating} onChange={(e) => setRating(Number(e.target.value))}>
+            {[5, 4, 3, 2, 1].map((n) => (
+              <option key={n} value={n}>
+                {n}★
+              </option>
+            ))}
+          </select>
+
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="感想を書く"
+            style={{ minHeight: 90 }}
+          />
+
+          <button className="primary" type="submit">
+            投稿
+          </button>
+        </form>
+      </section>
+
+      <section className="card" style={{ marginTop: 16 }}>
+        <h2>レビュー一覧</h2>
 
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setSortMode("new")}>新着順</button>
-          <button onClick={() => setSortMode("likes")}>いいね順</button>
+          <button className="secondary" onClick={() => setSortMode("new")}>
+            新着順
+          </button>
+          <button className="secondary" onClick={() => setSortMode("likes")}>
+            いいね順
+          </button>
         </div>
 
         {sortedReviews.map((review) => {
           const name = review.profile?.username || review.profile?.email || "ユーザー";
 
           return (
-            <div key={review.id} style={{ border: "1px solid #ddd", marginTop: 10, padding: 12 }}>
-              <button onClick={() => onUserClick(review.user_id)}>{name}</button>
+            <div key={review.id} className="card" style={{ marginTop: 12 }}>
+              <button
+                onClick={() => onUserClick(review.user_id)}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  color: "#2563eb",
+                  textDecoration: "underline",
+                }}
+              >
+                {name}
+              </button>
 
-              <div>{"★".repeat(review.rating)}</div>
+              <div style={{ marginTop: 8 }}>{"★".repeat(review.rating)}</div>
               <p>{review.body}</p>
 
-              <button onClick={() => toggleLike(review)}>
+              <button className="secondary" onClick={() => toggleLike(review)}>
                 {review.liked_by_me ? "♥ いいね済み" : "♡ いいね"} {review.like_count}
               </button>
             </div>
           );
         })}
       </section>
-    </div>
+    </main>
   );
 }
