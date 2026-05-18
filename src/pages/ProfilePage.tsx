@@ -45,11 +45,13 @@ export default function ProfilePage({
   currentUserId,
   onBack,
   onBookSelect,
+  onLogout,
 }: {
   userId: string;
   currentUserId: string;
   onBack: () => void;
   onBookSelect: (book: Book) => void;
+  onLogout: () => void;
 }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [username, setUsername] = useState("");
@@ -468,9 +470,23 @@ export default function ProfilePage({
               <div>{"★".repeat(review.rating)}</div>
               <p>{review.body}</p>
             </button>
+
+    
+
+            
           ))
         )}
+        {isMe && (
+  <button
+    onClick={onLogout}
+    className="secondary"
+    style={{ marginTop: 24, width: "100%" }}
+  >
+    ログアウト
+  </button>
+)}
       </section>
     </div>
   );
 }
+

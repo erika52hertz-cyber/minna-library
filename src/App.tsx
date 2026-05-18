@@ -74,10 +74,10 @@ export default function App() {
           </p>
 
           <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
-            <div>📚 本を検索してレビューできる</div>
-            <div>❤️ 良いレビューにいいねできる</div>
-            <div>👤 名刺がわりの10冊をプロフィールに並べられる</div>
-            <div>🔥 人気レビューランキングを見られる</div>
+            <div>本を検索してレビューできる</div>
+            <div>良いレビューにいいねできる</div>
+            <div>名刺がわりの10冊をプロフィールに並べられる</div>
+            <div>人気レビューランキングを見られる</div>
           </div>
 
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -142,6 +142,7 @@ export default function App() {
         currentUserId={session.user.id}
         onBack={() => setViewUserId(null)}
         onBookSelect={setSelectedBook}
+        onLogout={logout}
       />
     );
   } else if (page === "feed") {
@@ -168,6 +169,7 @@ export default function App() {
         currentUserId={session.user.id}
         onBack={() => setPage("home")}
         onBookSelect={setSelectedBook}
+        onLogout={logout}
       />
     );
   } else {
@@ -199,7 +201,7 @@ export default function App() {
           background: "white",
           borderTop: "1px solid #ddd",
           display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
+          gridTemplateColumns: "repeat(4, 1fr)",
           zIndex: 50,
         }}
       >
@@ -241,10 +243,6 @@ export default function App() {
           }}
         >
           マイページ
-        </NavButton>
-
-        <NavButton active={false} onClick={logout}>
-          退出
         </NavButton>
       </nav>
     </div>

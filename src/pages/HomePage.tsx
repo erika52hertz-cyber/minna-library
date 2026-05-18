@@ -36,12 +36,16 @@ export default function HomePage({
   const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
   const [selectedExperience, setSelectedExperience] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    searchBooks();
-  }, [query, selectedGenre, selectedEmotion, selectedTheme, selectedExperience]);
+    handleSearch(false);
+  }, []);
 
-  async function searchBooks() {
+  async function handleSearch(closeFilters = true) {
+    setLoading(true);
+
     let request = supabase
       .from("books")
       .select("id,title,author_name,genre,emotion_tags,theme_tags,experience_tags")
@@ -58,12 +62,19 @@ export default function HomePage({
     if (selectedExperience) request = request.contains("experience_tags", [selectedExperience]);
 
     const { data, error } = await request;
+
     if (error) {
       console.error(error);
+      setLoading(false);
       return;
     }
 
     setBooks((data ?? []) as Book[]);
+    setLoading(false);
+
+    if (closeFilters) {
+      setShowFilters(false);
+    }
   }
 
   function clearFilters() {
@@ -72,6 +83,11 @@ export default function HomePage({
     setSelectedEmotion(null);
     setSelectedTheme(null);
     setSelectedExperience(null);
+    setShowFilters(true);
+
+    setTimeout(() => {
+      handleSearch(false);
+    }, 0);
   }
 
   if (selectedBook) {
@@ -91,26 +107,68 @@ export default function HomePage({
         <h1 style={{ fontSize: 32, marginBottom: 8 }}>検索</h1>
         <p className="muted">気分・テーマ・読後感から本を探せます。</p>
 
-        <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto auto",
+            gap: 10,
+            marginTop: 18,
+            alignItems: "center",
+          }}
+        >
           <input
             className="input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="タイトル・著者名で検索"
           />
-          <button className="secondary" onClick={clearFilters}>
+
+          <button
+            className="primary"
+            onClick={() => handleSearch(true)}
+            style={{ whiteSpace: "nowrap" }}
+          >
+            検索
+          </button>
+
+          <button
+            className="secondary"
+            onClick={clearFilters}
+            style={{ whiteSpace: "nowrap" }}
+          >
             クリア
           </button>
         </div>
+
+        <button
+          className="secondary"
+          onClick={() => setShowFilters(!showFilters)}
+          style={{ marginTop: 12 }}
+        >
+          {showFilters ? "条件を閉じる" : "条件を開く"}
+        </button>
       </section>
 
-      <TagSection title="ジャンル" tags={GENRES} selected={selectedGenre} onSelect={setSelectedGenre} />
-      <TagSection title="感情タグ" tags={EMOTION_TAGS} selected={selectedEmotion} onSelect={setSelectedEmotion} />
-      <TagSection title="テーマタグ" tags={THEME_TAGS} selected={selectedTheme} onSelect={setSelectedTheme} />
-      <TagSection title="体験タグ" tags={EXPERIENCE_TAGS} selected={selectedExperience} onSelect={setSelectedExperience} />
+      {showFilters && (
+        <>
+          <TagSection title="ジャンル" tags={GENRES} selected={selectedGenre} onSelect={setSelectedGenre} />
+          <TagSection title="感情タグ" tags={EMOTION_TAGS} selected={selectedEmotion} onSelect={setSelectedEmotion} />
+          <TagSection title="テーマタグ" tags={THEME_TAGS} selected={selectedTheme} onSelect={setSelectedTheme} />
+          <TagSection title="体験タグ" tags={EXPERIENCE_TAGS} selected={selectedExperience} onSelect={setSelectedExperience} />
+        </>
+      )}
 
       <section style={{ marginTop: 24 }}>
-        <h2>検索結果：{books.length}件</h2>
+        <h2>{loading ? "検索中..." : `検索結果：${books.length}件`}</h2>
+
+        {!loading && books.length === 0 && (
+          <div className="card">
+            <p className="muted">該当する本が見つかりませんでした。</p>
+            <button className="primary" onClick={() => alert("次に本追加機能を作ります")}>
+              本を追加する
+            </button>
+          </div>
+        )}
 
         {books.map((book) => (
           <button key={book.id} className="book-card" onClick={() => onBookSelect(book)}>
