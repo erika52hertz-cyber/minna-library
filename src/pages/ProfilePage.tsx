@@ -27,6 +27,12 @@ type UserBook = {
   book: Book | null;
 };
 
+type BusinessCardBook = {
+  id: string;
+  position: number;
+  book: Book | null;
+};
+
 const STATUS_LABELS: Record<string, string> = {
   finished: "読破",
   reading: "読書中",
@@ -49,6 +55,7 @@ export default function ProfilePage({
   const [username, setUsername] = useState("");
   const [reviews, setReviews] = useState<Review[]>([]);
   const [userBooks, setUserBooks] = useState<UserBook[]>([]);
+  const [businessBooks, setBusinessBooks] = useState<BusinessCardBook[]>([]);
   const [saving, setSaving] = useState(false);
 
   const [isFollowing, setIsFollowing] = useState(false);
@@ -61,6 +68,7 @@ export default function ProfilePage({
     loadProfile();
     loadReviews();
     loadUserBooks();
+    loadBusinessCardBooks();
     loadFollowState();
   }, [userId, currentUserId]);
 
@@ -129,6 +137,37 @@ export default function ProfilePage({
     );
 
     setUserBooks(withBooks);
+  }
+
+  async function loadBusinessCardBooks() {
+    const { data, error } = await supabase
+      .from("business_card_books")
+      .select("id,book_id,position")
+      .eq("user_id", userId)
+      .order("position", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const withBooks = await Promise.all(
+      (data ?? []).map(async (item) => {
+        const { data: book } = await supabase
+          .from("books")
+          .select("id,title,author_name")
+          .eq("id", item.book_id)
+          .maybeSingle();
+
+        return {
+          id: item.id,
+          position: item.position,
+          book,
+        };
+      })
+    );
+
+    setBusinessBooks(withBooks);
   }
 
   async function loadFollowState() {
@@ -211,6 +250,24 @@ export default function ProfilePage({
     await loadFollowState();
   }
 
+  async function removeBusinessCardBook(id: string) {
+    const ok = confirm("名刺がわりの10冊から削除しますか？");
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("business_card_books")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", currentUserId);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    loadBusinessCardBooks();
+  }
+
   return (
     <div style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
       <button onClick={onBack}>← 戻る</button>
@@ -274,6 +331,79 @@ export default function ProfilePage({
               {saving ? "保存中..." : "プロフィールを保存"}
             </button>
           </form>
+        )}
+      </section>
+
+      <section style={{ marginTop: 24 }}>
+        <h2>名刺がわりの10冊</h2>
+
+        {businessBooks.length === 0 ? (
+          <p style={{ color: "#777" }}>
+            まだ登録されていません。本詳細ページから追加できます。
+          </p>
+        ) : (
+          businessBooks.map((item, index) => (
+            <div
+              key={item.id}
+              style={{
+                display: "flex",
+                gap: 12,
+                alignItems: "center",
+                padding: 16,
+                marginTop: 12,
+                border: "1px solid #ddd",
+                borderRadius: 12,
+                background: "white",
+              }}
+            >
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 999,
+                  background: "#fef3c7",
+                  color: "#92400e",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: "bold",
+                  flexShrink: 0,
+                }}
+              >
+                {index + 1}
+              </div>
+
+              <button
+                onClick={() => item.book && onBookSelect(item.book)}
+                style={{
+                  flex: 1,
+                  textAlign: "left",
+                  border: "none",
+                  background: "transparent",
+                  cursor: item.book ? "pointer" : "default",
+                }}
+              >
+                <strong>{item.book?.title ?? "不明な本"}</strong>
+                <p style={{ margin: "4px 0 0", color: "#666" }}>
+                  {item.book?.author_name}
+                </p>
+              </button>
+
+              {isMe && (
+                <button
+                  onClick={() => removeBusinessCardBook(item.id)}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "#c00",
+                    cursor: "pointer",
+                  }}
+                >
+                  削除
+                </button>
+              )}
+            </div>
+          ))
         )}
       </section>
 
