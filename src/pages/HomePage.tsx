@@ -117,7 +117,13 @@ export default function HomePage({
   setFetchingBook(true);
 
   try {
-    // 1. まず openBD を使う
+    let title = "";
+    let author = "";
+    let coverUrl = "";
+    let publishedYear = "";
+    let description = "";
+    let pageCount = "";
+
     const openbdRes = await fetch(
       `https://api.openbd.jp/v1/get?isbn=${cleanIsbn}`
     );
@@ -128,54 +134,57 @@ export default function HomePage({
       const summary = openbdItem.summary;
       const onix = openbdItem.onix;
 
-      const description =
+      title = summary?.title ?? "";
+      author = summary?.author ?? "";
+      coverUrl = summary?.cover ?? "";
+      publishedYear = summary?.pubdate?.slice(0, 4) ?? "";
+      description =
         onix?.CollateralDetail?.TextContent?.[0]?.Text ?? "";
-
-      setNewTitle(summary?.title ?? "");
-      setNewAuthor(summary?.author ?? "");
-      setNewCoverUrl(summary?.cover ?? "");
-      setNewPublishedYear(summary?.pubdate?.slice(0, 4) ?? "");
-      setNewDescription(description);
-
-      setFetchingBook(false);
-      return;
     }
 
-    // 2. openBDで見つからなければ Google Books
     const googleRes = await fetch(
       `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`
     );
 
-    if (googleRes.status === 429) {
-      alert("取得回数が多いため、しばらく待ってから再試行してください。");
-      return;
-    }
+    if (googleRes.status !== 429) {
+      const googleJson = await googleRes.json();
+      const item = googleJson.items?.[0]?.volumeInfo;
 
-    const googleJson = await googleRes.json();
-    const item = googleJson.items?.[0]?.volumeInfo;
+      if (item) {
+        title = title || item.title || "";
+        author = author || (item.authors ?? []).join(", ");
+        description = description || item.description || "";
+        pageCount = item.pageCount ? String(item.pageCount) : "";
 
-    if (item) {
-      setNewTitle(item.title ?? "");
-      setNewAuthor((item.authors ?? []).join(", "));
-      setNewDescription(item.description ?? "");
-      setNewPageCount(item.pageCount ? String(item.pageCount) : "");
+        if (!publishedYear && item.publishedDate) {
+          publishedYear = String(Number(item.publishedDate.slice(0, 4)) || "");
+        }
 
-      if (item.publishedDate) {
-        setNewPublishedYear(
-          String(Number(item.publishedDate.slice(0, 4)) || "")
-        );
+        const image =
+          item.imageLinks?.thumbnail ||
+          item.imageLinks?.smallThumbnail ||
+          "";
+
+        coverUrl = coverUrl || image.replace("http://", "https://");
       }
+    }
 
-      const image =
-        item.imageLinks?.thumbnail ||
-        item.imageLinks?.smallThumbnail ||
-        "";
-
-      setNewCoverUrl(image.replace("http://", "https://"));
+    if (!title && !author) {
+      alert("書籍情報が見つかりませんでした。手入力してください。");
       return;
     }
 
-    alert("書籍情報が見つかりませんでした。手入力してください。");
+    setNewTitle(title);
+    setNewAuthor(author);
+    setNewCoverUrl(coverUrl);
+    setNewPublishedYear(publishedYear);
+    setNewDescription(description);
+    setNewPageCount(pageCount);
+
+    const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(
+      `${title} ${author}`
+    )}`;
+    setNewAffiliateUrl(amazonUrl);
   } catch (error) {
     console.error(error);
     alert("取得に失敗しました。手入力してください。");
