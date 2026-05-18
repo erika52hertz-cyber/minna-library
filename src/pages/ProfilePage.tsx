@@ -11,6 +11,7 @@ type Book = {
   id: string;
   title: string;
   author_name: string;
+  page_count?: number | null;
 };
 
 type Review = {
@@ -36,7 +37,6 @@ type BusinessCardBook = {
 type ReadingRecord = {
   id: string;
   finished_date: string;
-  pages: number | null;
   book: Book | null;
 };
 
@@ -111,7 +111,7 @@ export default function ProfilePage({
       (reviewData ?? []).map(async (review) => {
         const { data: book } = await supabase
           .from("books")
-          .select("id,title,author_name")
+          .select("id,title,author_name,page_count")
           .eq("id", review.book_id)
           .maybeSingle();
 
@@ -137,7 +137,7 @@ export default function ProfilePage({
       (data ?? []).map(async (item) => {
         const { data: book } = await supabase
           .from("books")
-          .select("id,title,author_name")
+          .select("id,title,author_name,page_count")
           .eq("id", item.book_id)
           .maybeSingle();
 
@@ -168,7 +168,7 @@ export default function ProfilePage({
       (data ?? []).map(async (item) => {
         const { data: book } = await supabase
           .from("books")
-          .select("id,title,author_name")
+          .select("id,title,author_name,page_count")
           .eq("id", item.book_id)
           .maybeSingle();
 
@@ -191,7 +191,7 @@ export default function ProfilePage({
 
     const { data, error } = await supabase
       .from("reading_records")
-      .select("id,book_id,finished_date,pages")
+      .select("id,book_id,finished_date")
       .eq("user_id", userId)
       .gte("finished_date", firstDay)
       .order("finished_date", { ascending: false });
@@ -205,14 +205,13 @@ export default function ProfilePage({
       (data ?? []).map(async (record) => {
         const { data: book } = await supabase
           .from("books")
-          .select("id,title,author_name")
+          .select("id,title,author_name,page_count")
           .eq("id", record.book_id)
           .maybeSingle();
 
         return {
           id: record.id,
           finished_date: record.finished_date,
-          pages: record.pages,
           book,
         };
       })
@@ -320,10 +319,25 @@ export default function ProfilePage({
   }
 
   const monthlyBookCount = readingRecords.length;
-  const monthlyPages = readingRecords.reduce(
-    (sum, record) => sum + (record.pages ?? 0),
-    0
+
+  const monthlyPages = readingRecords.reduce((sum, record) => {
+    return sum + (record.book?.page_count ?? 0);
+  }, 0);
+
+  const pagesByDate = readingRecords.reduce<Record<string, number>>(
+    (acc, record) => {
+      const pages = record.book?.page_count ?? 0;
+      acc[record.finished_date] = (acc[record.finished_date] ?? 0) + pages;
+      return acc;
+    },
+    {}
   );
+
+  const chartData = Object.entries(pagesByDate)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, pages]) => ({ date, pages }));
+
+  const maxPages = Math.max(...chartData.map((item) => item.pages), 1);
 
   return (
     <main className="page">
@@ -366,7 +380,13 @@ export default function ProfilePage({
       <section className="card" style={{ marginTop: 16 }}>
         <h2>今月の読書記録</h2>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 12,
+          }}
+        >
           <div className="card">
             <div className="muted">読了冊数</div>
             <strong style={{ fontSize: 28 }}>{monthlyBookCount}</strong> 冊
@@ -378,25 +398,61 @@ export default function ProfilePage({
           </div>
         </div>
 
-        {readingRecords.length === 0 ? (
-          <p className="muted" style={{ marginTop: 12 }}>
-            今月の読書記録はまだありません。
-          </p>
+        <h3 style={{ marginTop: 20 }}>日別ページ数</h3>
+
+        {chartData.length === 0 ? (
+          <p className="muted">今月の読書記録はまだありません。</p>
         ) : (
-          readingRecords.map((record) => (
-            <button
-              key={record.id}
-              className="book-card"
-              onClick={() => record.book && onBookSelect(record.book)}
-            >
-              <strong>{record.book?.title ?? "不明な本"}</strong>
-              <div className="muted">{record.book?.author_name}</div>
-              <div style={{ marginTop: 6 }}>
-                {record.finished_date} / {record.pages ?? 0}ページ
+          <div style={{ display: "grid", gap: 10 }}>
+            {chartData.map((item) => (
+              <div key={item.date}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 13,
+                    marginBottom: 4,
+                  }}
+                >
+                  <span>{item.date}</span>
+                  <span>{item.pages}ページ</span>
+                </div>
+
+                <div
+                  style={{
+                    height: 12,
+                    background: "#f5f5f4",
+                    borderRadius: 999,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${(item.pages / maxPages) * 100}%`,
+                      height: "100%",
+                      background: "#b45309",
+                      borderRadius: 999,
+                    }}
+                  />
+                </div>
               </div>
-            </button>
-          ))
+            ))}
+          </div>
         )}
+
+        {readingRecords.map((record) => (
+          <button
+            key={record.id}
+            className="book-card"
+            onClick={() => record.book && onBookSelect(record.book)}
+          >
+            <strong>{record.book?.title ?? "不明な本"}</strong>
+            <div className="muted">{record.book?.author_name}</div>
+            <div style={{ marginTop: 6 }}>
+              {record.finished_date} / {record.book?.page_count ?? 0}ページ
+            </div>
+          </button>
+        ))}
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
