@@ -13,11 +13,8 @@ type Book = {
 };
 
 const GENRES = ["SF", "コメディ", "サスペンス", "ノワール", "ヒューマンドラマ", "ファンタジー", "ホラー", "ミステリー", "冒険", "恋愛", "推理", "歴史・時代小説", "社会派", "純文学", "青春"];
-
-const EMOTION_TAGS = ["スカッと", "ハラハラ", "不安", "不気味", "人間関係", "余韻が強い", "優しい", "再生", "切ない", "孤独", "寂しい", "希望", "心が温まる", "怖い", "悲しい", "愛", "救い", "泣ける", "爽快", "狂気", "癒される", "絶望", "緊張感", "考えさせられる", "苦しい", "虚無", "重い", "静か"];
-
-const THEME_TAGS = ["SF", "SNS", "サスペンス", "トラウマ", "ファンタジー", "ホラー", "ミステリー", "仕事", "医療", "友情", "学校", "宗教", "家族", "復讐", "恋愛", "成長", "戦争", "政治", "格差", "歴史", "犯罪", "生と死", "社会問題", "結婚", "芸術", "裏切り", "親子", "貧困", "離婚", "青春", "音楽"];
-
+const EMOTION_TAGS = ["スカッと", "ハラハラ", "不安", "不気味", "余韻が強い", "優しい", "切ない", "孤独", "希望", "怖い", "悲しい", "泣ける", "爽快", "狂気", "癒される", "緊張感", "考えさせられる", "重い", "静か"];
+const THEME_TAGS = ["SF", "SNS", "サスペンス", "ファンタジー", "ホラー", "ミステリー", "仕事", "友情", "学校", "家族", "復讐", "恋愛", "成長", "戦争", "政治", "歴史", "犯罪", "生と死", "社会問題", "青春", "音楽"];
 const EXPERIENCE_TAGS = ["どんでん返し", "伏線回収", "会話中心", "展開が早い", "後味が悪い", "後味が良い"];
 
 export default function HomePage({
@@ -55,24 +52,12 @@ export default function HomePage({
       request = request.or(`title.ilike.%${q}%,author_name.ilike.%${q}%`);
     }
 
-    if (selectedGenre) {
-      request = request.eq("genre", selectedGenre);
-    }
-
-    if (selectedEmotion) {
-      request = request.contains("emotion_tags", [selectedEmotion]);
-    }
-
-    if (selectedTheme) {
-      request = request.contains("theme_tags", [selectedTheme]);
-    }
-
-    if (selectedExperience) {
-      request = request.contains("experience_tags", [selectedExperience]);
-    }
+    if (selectedGenre) request = request.eq("genre", selectedGenre);
+    if (selectedEmotion) request = request.contains("emotion_tags", [selectedEmotion]);
+    if (selectedTheme) request = request.contains("theme_tags", [selectedTheme]);
+    if (selectedExperience) request = request.contains("experience_tags", [selectedExperience]);
 
     const { data, error } = await request;
-
     if (error) {
       console.error(error);
       return;
@@ -101,81 +86,54 @@ export default function HomePage({
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 760, margin: "0 auto" }}>
-      <h1>検索</h1>
+    <main className="page bottom-space">
+      <header className="card" style={{ marginBottom: 18 }}>
+        <h1 style={{ fontSize: 30, marginBottom: 6 }}>みんなの図書館</h1>
+        <p className="muted" style={{ marginBottom: 18 }}>
+          ぴったりの一冊と、本音のレビューに出会う場所
+        </p>
 
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="タイトル・著者名で検索"
-        style={{
-          width: "100%",
-          padding: 14,
-          borderRadius: 16,
-          border: "1px solid #ddd",
-          boxSizing: "border-box",
-        }}
-      />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="タイトル・著者名で検索"
+        />
 
-      <button onClick={clearFilters} style={{ marginTop: 12 }}>
-        クリア
-      </button>
+        <button className="secondary-button" onClick={clearFilters} style={{ marginTop: 12 }}>
+          条件をクリア
+        </button>
+      </header>
 
-      <TagSection
-        title="ジャンル"
-        tags={GENRES}
-        selected={selectedGenre}
-        onSelect={setSelectedGenre}
-      />
+      <TagSection title="ジャンル" tags={GENRES} selected={selectedGenre} onSelect={setSelectedGenre} />
+      <TagSection title="感情タグ" tags={EMOTION_TAGS} selected={selectedEmotion} onSelect={setSelectedEmotion} />
+      <TagSection title="テーマタグ" tags={THEME_TAGS} selected={selectedTheme} onSelect={setSelectedTheme} />
+      <TagSection title="体験タグ" tags={EXPERIENCE_TAGS} selected={selectedExperience} onSelect={setSelectedExperience} />
 
-      <TagSection
-        title="感情タグ"
-        tags={EMOTION_TAGS}
-        selected={selectedEmotion}
-        onSelect={setSelectedEmotion}
-      />
+      <section style={{ marginTop: 24 }}>
+        <h2>検索結果：{books.length}件</h2>
 
-      <TagSection
-        title="テーマタグ"
-        tags={THEME_TAGS}
-        selected={selectedTheme}
-        onSelect={setSelectedTheme}
-      />
-
-      <TagSection
-        title="体験タグ"
-        tags={EXPERIENCE_TAGS}
-        selected={selectedExperience}
-        onSelect={setSelectedExperience}
-      />
-
-      <h2 style={{ marginTop: 24 }}>検索結果：{books.length}件</h2>
-
-      {books.length === 0 ? (
-        <p style={{ color: "#777" }}>該当する本が見つかりませんでした。</p>
-      ) : (
-        books.map((book) => (
-          <div
-            key={book.id}
-            onClick={() => onBookSelect(book)}
-            style={{
-              padding: 14,
-              border: "1px solid #ddd",
-              borderRadius: 12,
-              marginTop: 10,
-              cursor: "pointer",
-              background: "white",
-            }}
-          >
-            <strong>{book.title}</strong>
-            <div style={{ color: "#666" }}>{book.author_name}</div>
-            <div style={{ marginTop: 6, fontSize: 12, color: "#92400e" }}>
-              {book.genre}
-            </div>
-          </div>
-        ))
-      )}
-    </div>
+        {books.length === 0 ? (
+          <div className="card muted">該当する本が見つかりませんでした。</div>
+        ) : (
+          books.map((book) => (
+            <button
+              key={book.id}
+              onClick={() => onBookSelect(book)}
+              className="book-card"
+              style={{ marginTop: 12 }}
+            >
+              <strong style={{ fontSize: 17 }}>{book.title}</strong>
+              <div className="muted" style={{ marginTop: 4 }}>{book.author_name}</div>
+              {book.genre && (
+                <div style={{ marginTop: 8, color: "#92400e", fontSize: 13, fontWeight: 700 }}>
+                  {book.genre}
+                </div>
+              )}
+            </button>
+          ))
+        )}
+      </section>
+    </main>
   );
 }
 
@@ -191,29 +149,18 @@ function TagSection({
   onSelect: (tag: string | null) => void;
 }) {
   return (
-    <section style={{ marginTop: 20 }}>
-      <h3>{title}</h3>
+    <section className="card" style={{ marginTop: 14 }}>
+      <h3 style={{ marginBottom: 12 }}>{title}</h3>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {tags.map((tag) => {
-          const active = selected === tag;
-
-          return (
-            <button
-              key={tag}
-              onClick={() => onSelect(active ? null : tag)}
-              style={{
-                padding: "7px 12px",
-                borderRadius: 999,
-                border: "1px solid #ddd",
-                background: active ? "#92400e" : "white",
-                color: active ? "white" : "#444",
-                cursor: "pointer",
-              }}
-            >
-              {tag}
-            </button>
-          );
-        })}
+        {tags.map((tag) => (
+          <button
+            key={tag}
+            onClick={() => onSelect(selected === tag ? null : tag)}
+            className={`tag-button ${selected === tag ? "active" : ""}`}
+          >
+            {tag}
+          </button>
+        ))}
       </div>
     </section>
   );
