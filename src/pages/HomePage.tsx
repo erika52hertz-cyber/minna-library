@@ -86,23 +86,23 @@ export default function HomePage({
   }
 
   return (
-    <main className="page bottom-space">
-      <header className="card" style={{ marginBottom: 18 }}>
-        <h1 style={{ fontSize: 30, marginBottom: 6 }}>みんなの図書館</h1>
-        <p className="muted" style={{ marginBottom: 18 }}>
-          ぴったりの一冊と、本音のレビューに出会う場所
-        </p>
+    <main className="page">
+      <section className="card">
+        <h1 style={{ fontSize: 32, marginBottom: 8 }}>検索</h1>
+        <p className="muted">気分・テーマ・読後感から本を探せます。</p>
 
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="タイトル・著者名で検索"
-        />
-
-        <button className="secondary-button" onClick={clearFilters} style={{ marginTop: 12 }}>
-          条件をクリア
-        </button>
-      </header>
+        <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+          <input
+            className="input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="タイトル・著者名で検索"
+          />
+          <button className="secondary" onClick={clearFilters}>
+            クリア
+          </button>
+        </div>
+      </section>
 
       <TagSection title="ジャンル" tags={GENRES} selected={selectedGenre} onSelect={setSelectedGenre} />
       <TagSection title="感情タグ" tags={EMOTION_TAGS} selected={selectedEmotion} onSelect={setSelectedEmotion} />
@@ -112,26 +112,17 @@ export default function HomePage({
       <section style={{ marginTop: 24 }}>
         <h2>検索結果：{books.length}件</h2>
 
-        {books.length === 0 ? (
-          <div className="card muted">該当する本が見つかりませんでした。</div>
-        ) : (
-          books.map((book) => (
-            <button
-              key={book.id}
-              onClick={() => onBookSelect(book)}
-              className="book-card"
-              style={{ marginTop: 12 }}
-            >
-              <strong style={{ fontSize: 17 }}>{book.title}</strong>
-              <div className="muted" style={{ marginTop: 4 }}>{book.author_name}</div>
-              {book.genre && (
-                <div style={{ marginTop: 8, color: "#92400e", fontSize: 13, fontWeight: 700 }}>
-                  {book.genre}
-                </div>
-              )}
-            </button>
-          ))
-        )}
+        {books.map((book) => (
+          <button key={book.id} className="book-card" onClick={() => onBookSelect(book)}>
+            <strong style={{ fontSize: 18 }}>{book.title}</strong>
+            <div className="muted" style={{ marginTop: 4 }}>{book.author_name}</div>
+            {book.genre && (
+              <div style={{ marginTop: 8, color: "#b45309", fontWeight: 700 }}>
+                {book.genre}
+              </div>
+            )}
+          </button>
+        ))}
       </section>
     </main>
   );
@@ -149,14 +140,14 @@ function TagSection({
   onSelect: (tag: string | null) => void;
 }) {
   return (
-    <section className="card" style={{ marginTop: 14 }}>
-      <h3 style={{ marginBottom: 12 }}>{title}</h3>
+    <section className="card" style={{ marginTop: 16 }}>
+      <h3 style={{ marginBottom: 14 }}>{title}</h3>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {tags.map((tag) => (
           <button
             key={tag}
+            className={`tag ${selected === tag ? "active" : ""}`}
             onClick={() => onSelect(selected === tag ? null : tag)}
-            className={`tag-button ${selected === tag ? "active" : ""}`}
           >
             {tag}
           </button>
