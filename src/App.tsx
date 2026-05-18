@@ -4,6 +4,7 @@ import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
 import BookDetailPage from "./pages/BookDetailPage";
 import FollowingFeedPage from "./pages/FollowingFeedPage";
+import RankingPage from "./pages/RankingPage";
 
 type Book = {
   id: string;
@@ -13,7 +14,7 @@ type Book = {
 
 export default function App() {
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [page, setPage] = useState<"home" | "feed" | "profile">("home");
+  const [page, setPage] = useState<"home" | "feed" | "ranking" | "profile">("home");
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [viewUserId, setViewUserId] = useState<string | null>(null);
 
@@ -56,20 +57,7 @@ export default function App() {
     setViewUserId(null);
   }
 
-  function goHome() {
-    setPage("home");
-    setSelectedBook(null);
-    setViewUserId(null);
-  }
-
-  function goFeed() {
-    setPage("feed");
-    setSelectedBook(null);
-    setViewUserId(null);
-  }
-
-  function goProfile() {
-    setPage("profile");
+  function resetViews() {
     setSelectedBook(null);
     setViewUserId(null);
   }
@@ -78,33 +66,39 @@ export default function App() {
 
   if (!session) {
     return (
-      <div style={{ padding: 24 }}>
-        <h1>みんなの図書館</h1>
+      <div className="page">
+        <section className="card">
+          <h1>みんなの図書館</h1>
 
-        <div style={{ marginBottom: 12 }}>
-          <button onClick={() => setMode("login")}>ログイン</button>
-          <button onClick={() => setMode("signup")}>新規登録</button>
-        </div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <button className="secondary" onClick={() => setMode("login")}>
+              ログイン
+            </button>
+            <button className="secondary" onClick={() => setMode("signup")}>
+              新規登録
+            </button>
+          </div>
 
-        <form onSubmit={submit}>
-          <input
-            type="email"
-            placeholder="メール"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <br />
-          <input
-            type="password"
-            placeholder="パスワード"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <br />
-          <button type="submit">
-            {mode === "login" ? "ログイン" : "登録"}
-          </button>
-        </form>
+          <form onSubmit={submit} style={{ display: "grid", gap: 10 }}>
+            <input
+              className="input"
+              type="email"
+              placeholder="メール"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <input
+              className="input"
+              type="password"
+              placeholder="パスワード"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button className="primary" type="submit">
+              {mode === "login" ? "ログイン" : "登録"}
+            </button>
+          </form>
+        </section>
       </div>
     );
   }
@@ -136,7 +130,15 @@ export default function App() {
     content = (
       <FollowingFeedPage
         currentUserId={session.user.id}
-        onBack={goHome}
+        onBack={() => setPage("home")}
+        onBookSelect={setSelectedBook}
+        onUserSelect={setViewUserId}
+      />
+    );
+  } else if (page === "ranking") {
+    content = (
+      <RankingPage
+        onBack={() => setPage("home")}
         onBookSelect={setSelectedBook}
         onUserSelect={setViewUserId}
       />
@@ -146,7 +148,7 @@ export default function App() {
       <ProfilePage
         userId={session.user.id}
         currentUserId={session.user.id}
-        onBack={goHome}
+        onBack={() => setPage("home")}
         onBookSelect={setSelectedBook}
       />
     );
@@ -179,21 +181,52 @@ export default function App() {
           background: "white",
           borderTop: "1px solid #ddd",
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: "repeat(5, 1fr)",
           zIndex: 50,
         }}
       >
-        <NavButton active={page === "home" && !selectedBook && !viewUserId} onClick={goHome}>
+        <NavButton
+          active={page === "home" && !selectedBook && !viewUserId}
+          onClick={() => {
+            resetViews();
+            setPage("home");
+          }}
+        >
           ホーム
         </NavButton>
-        <NavButton active={page === "feed" && !selectedBook && !viewUserId} onClick={goFeed}>
-          フォロー中
+
+        <NavButton
+          active={page === "feed" && !selectedBook && !viewUserId}
+          onClick={() => {
+            resetViews();
+            setPage("feed");
+          }}
+        >
+          フォロー
         </NavButton>
-        <NavButton active={page === "profile" && !selectedBook && !viewUserId} onClick={goProfile}>
-          プロフィール
+
+        <NavButton
+          active={page === "ranking" && !selectedBook && !viewUserId}
+          onClick={() => {
+            resetViews();
+            setPage("ranking");
+          }}
+        >
+          人気
         </NavButton>
+
+        <NavButton
+          active={page === "profile" && !selectedBook && !viewUserId}
+          onClick={() => {
+            resetViews();
+            setPage("profile");
+          }}
+        >
+          マイページ
+        </NavButton>
+
         <NavButton active={false} onClick={logout}>
-          ログアウト
+          退出
         </NavButton>
       </nav>
     </div>
@@ -217,7 +250,6 @@ function NavButton({
         background: active ? "#fef3c7" : "white",
         color: active ? "#92400e" : "#444",
         fontWeight: active ? "bold" : "normal",
-        cursor: "pointer",
       }}
     >
       {children}
