@@ -50,6 +50,9 @@ export default function BookDetailPage({
   onUserClick,
 }: Props) {
   const [bookDetail, setBookDetail] = useState<Book>(book);
+  const [isbn, setIsbn] = useState("");
+  const [fetchingBook, setFetchingBook] = useState(false);
+
   const [reviews, setReviews] = useState<Review[]>([]);
   const [rating, setRating] = useState(5);
   const [body, setBody] = useState("");
@@ -82,6 +85,97 @@ export default function BookDetailPage({
       .maybeSingle();
 
     if (data) setBookDetail(data as Book);
+  }
+
+  async function updateBookByIsbn() {
+    const cleanIsbn = isbn.replace(/[-\s]/g, "");
+
+    if (!cleanIsbn) {
+      alert("ISBNを入力してください");
+      return;
+    }
+
+    setFetchingBook(true);
+
+    try {
+      let nextData: Partial<Book> | null = null;
+
+      const googleRes = await fetch(
+        `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`
+      );
+      const googleJson = await googleRes.json();
+      const item = googleJson.items?.[0]?.volumeInfo;
+
+      if (item) {
+        const image =
+          item.imageLinks?.thumbnail ||
+          item.imageLinks?.smallThumbnail ||
+          "";
+
+        nextData = {
+          title: item.title || bookDetail.title,
+          author_name: (item.authors ?? []).join(", ") || bookDetail.author_name,
+          description: item.description || bookDetail.description || null,
+          page_count: item.pageCount ?? bookDetail.page_count ?? null,
+          published_year: item.publishedDate
+            ? Number(item.publishedDate.slice(0, 4)) || bookDetail.published_year || null
+            : bookDetail.published_year || null,
+          cover_url: image ? image.replace("http://", "https://") : bookDetail.cover_url || null,
+        };
+      } else {
+        const openbdRes = await fetch(
+          `https://api.openbd.jp/v1/get?isbn=${cleanIsbn}`
+        );
+        const openbdJson = await openbdRes.json();
+        const openbdItem = openbdJson?.[0];
+
+        if (openbdItem) {
+          const summary = openbdItem.summary;
+          const onix = openbdItem.onix;
+
+          const description =
+            onix?.CollateralDetail?.TextContent?.[0]?.Text ?? "";
+
+          nextData = {
+            title: summary?.title || bookDetail.title,
+            author_name: summary?.author || bookDetail.author_name,
+            cover_url: summary?.cover || bookDetail.cover_url || null,
+            published_year: summary?.pubdate
+              ? Number(summary.pubdate.slice(0, 4)) || bookDetail.published_year || null
+              : bookDetail.published_year || null,
+            description: description || bookDetail.description || null,
+          };
+        }
+      }
+
+      if (!nextData) {
+        alert("書籍情報が見つかりませんでした");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("books")
+        .update(nextData)
+        .eq("id", book.id)
+        .select(
+          "id,title,author_name,genre,cover_url,page_count,published_year,description,affiliate_url"
+        )
+        .single();
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      setBookDetail(data as Book);
+      setIsbn("");
+      alert("書籍情報を更新しました");
+    } catch (error) {
+      console.error(error);
+      alert("取得または更新に失敗しました");
+    } finally {
+      setFetchingBook(false);
+    }
   }
 
   async function loadStatus() {
@@ -369,6 +463,26 @@ export default function BookDetailPage({
             {isBusinessCardBook
               ? "名刺がわりの10冊から外す"
               : `名刺がわりの10冊に追加（${businessCount}/10）`}
+          </button>
+        </div>
+      </section>
+
+      <section className="card" style={{ marginTop: 16 }}>
+        <h2>書籍情報をISBNで更新</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+          <input
+            className="input"
+            value={isbn}
+            onChange={(e) => setIsbn(e.target.value)}
+            placeholder="ISBNを入力"
+          />
+          <button
+            className="secondary"
+            onClick={updateBookByIsbn}
+            disabled={fetchingBook}
+            style={{ whiteSpace: "nowrap" }}
+          >
+            {fetchingBook ? "取得中..." : "更新"}
           </button>
         </div>
       </section>
