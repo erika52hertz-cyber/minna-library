@@ -62,31 +62,48 @@ export default function App() {
     setViewUserId(null);
   }
 
-  if (loading) return <div style={{ padding: 24 }}>読み込み中...</div>;
+  if (loading) return <div className="page">読み込み中...</div>;
 
   if (!session) {
     return (
-      <div className="page">
+      <main className="page">
         <section className="card">
-          <h1>みんなの図書館</h1>
+          <h1 style={{ fontSize: 32, marginBottom: 8 }}>みんなの図書館</h1>
+          <p className="muted" style={{ marginBottom: 20 }}>
+            本の感想を投稿し、好きな本・好きな読書家とつながる読書SNSです。
+          </p>
 
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <button className="secondary" onClick={() => setMode("login")}>
+          <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
+            <div>📚 本を検索してレビューできる</div>
+            <div>❤️ 良いレビューにいいねできる</div>
+            <div>👤 名刺がわりの10冊をプロフィールに並べられる</div>
+            <div>🔥 人気レビューランキングを見られる</div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <button
+              className={mode === "login" ? "primary" : "secondary"}
+              onClick={() => setMode("login")}
+            >
               ログイン
             </button>
-            <button className="secondary" onClick={() => setMode("signup")}>
+            <button
+              className={mode === "signup" ? "primary" : "secondary"}
+              onClick={() => setMode("signup")}
+            >
               新規登録
             </button>
           </div>
 
-          <form onSubmit={submit} style={{ display: "grid", gap: 10 }}>
+          <form onSubmit={submit} style={{ display: "grid", gap: 12 }}>
             <input
               className="input"
               type="email"
-              placeholder="メール"
+              placeholder="メールアドレス"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+
             <input
               className="input"
               type="password"
@@ -94,12 +111,13 @@ export default function App() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+
             <button className="primary" type="submit">
-              {mode === "login" ? "ログイン" : "登録"}
+              {mode === "login" ? "ログインする" : "登録する"}
             </button>
           </form>
         </section>
-      </div>
+      </main>
     );
   }
 
