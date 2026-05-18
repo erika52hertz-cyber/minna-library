@@ -39,6 +39,12 @@ export default function HomePage({
   const [showFilters, setShowFilters] = useState(true);
   const [loading, setLoading] = useState(false);
 
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newAuthor, setNewAuthor] = useState("");
+  const [newGenre, setNewGenre] = useState("ミステリー");
+  const [adding, setAdding] = useState(false);
+
   useEffect(() => {
     handleSearch(false);
   }, []);
@@ -72,9 +78,7 @@ export default function HomePage({
     setBooks((data ?? []) as Book[]);
     setLoading(false);
 
-    if (closeFilters) {
-      setShowFilters(false);
-    }
+    if (closeFilters) setShowFilters(false);
   }
 
   function clearFilters() {
@@ -88,6 +92,43 @@ export default function HomePage({
     setTimeout(() => {
       handleSearch(false);
     }, 0);
+  }
+
+  async function addBook(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!newTitle.trim() || !newAuthor.trim()) {
+      alert("タイトルと著者名を入力してください");
+      return;
+    }
+
+    setAdding(true);
+
+    const { data, error } = await supabase
+      .from("books")
+      .insert({
+        title: newTitle.trim(),
+        author_name: newAuthor.trim(),
+        genre: newGenre,
+        emotion_tags: [],
+        theme_tags: [],
+        experience_tags: [],
+      })
+      .select("id,title,author_name,genre,emotion_tags,theme_tags,experience_tags")
+      .single();
+
+    setAdding(false);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setShowAddForm(false);
+    setNewTitle("");
+    setNewAuthor("");
+    setBooks((prev) => [data as Book, ...prev]);
+    onBookSelect(data as Book);
   }
 
   if (selectedBook) {
@@ -123,19 +164,11 @@ export default function HomePage({
             placeholder="タイトル・著者名で検索"
           />
 
-          <button
-            className="primary"
-            onClick={() => handleSearch(true)}
-            style={{ whiteSpace: "nowrap" }}
-          >
+          <button className="primary" onClick={() => handleSearch(true)} style={{ whiteSpace: "nowrap" }}>
             検索
           </button>
 
-          <button
-            className="secondary"
-            onClick={clearFilters}
-            style={{ whiteSpace: "nowrap" }}
-          >
+          <button className="secondary" onClick={clearFilters} style={{ whiteSpace: "nowrap" }}>
             クリア
           </button>
         </div>
@@ -164,10 +197,59 @@ export default function HomePage({
         {!loading && books.length === 0 && (
           <div className="card">
             <p className="muted">該当する本が見つかりませんでした。</p>
-            <button className="primary" onClick={() => alert("次に本追加機能を作ります")}>
+
+            <button className="primary" onClick={() => setShowAddForm(true)}>
               本を追加する
             </button>
           </div>
+        )}
+
+        {showAddForm && (
+          <section className="card" style={{ marginTop: 16 }}>
+            <h2>本を追加</h2>
+
+            <form onSubmit={addBook} style={{ display: "grid", gap: 12 }}>
+              <input
+                className="input"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="タイトル"
+              />
+
+              <input
+                className="input"
+                value={newAuthor}
+                onChange={(e) => setNewAuthor(e.target.value)}
+                placeholder="著者名"
+              />
+
+              <select
+                className="input"
+                value={newGenre}
+                onChange={(e) => setNewGenre(e.target.value)}
+              >
+                {GENRES.map((genre) => (
+                  <option key={genre} value={genre}>
+                    {genre}
+                  </option>
+                ))}
+              </select>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="primary" type="submit" disabled={adding}>
+                  {adding ? "追加中..." : "追加する"}
+                </button>
+
+                <button
+                  className="secondary"
+                  type="button"
+                  onClick={() => setShowAddForm(false)}
+                >
+                  キャンセル
+                </button>
+              </div>
+            </form>
+          </section>
         )}
 
         {books.map((book) => (
