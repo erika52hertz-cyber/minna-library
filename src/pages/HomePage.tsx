@@ -124,6 +124,9 @@ export default function HomePage({
     let description = "";
     let pageCount = "";
 
+    // =========================
+    // openBD
+    // =========================
     const openbdRes = await fetch(
       `https://api.openbd.jp/v1/get?isbn=${cleanIsbn}`
     );
@@ -135,42 +138,63 @@ export default function HomePage({
       const onix = openbdItem.onix;
 
       title = summary?.title ?? "";
-      author = summary?.author ?? "";
+
+      // ★ 著者名整形
+      const rawAuthor = summary?.author ?? "";
+      const parts = rawAuthor.split(",");
+      author = parts
+        .filter((p: string) => !p.match(/^\d{4}/))
+        .join("");
+
       coverUrl = summary?.cover ?? "";
       publishedYear = summary?.pubdate?.slice(0, 4) ?? "";
+
       description =
         onix?.CollateralDetail?.TextContent?.[0]?.Text ?? "";
     }
 
-    const googleRes = await fetch(
-      `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`
-    );
+    // =========================
+    // Google Books（補完）
+    // =========================
+    try {
+      const googleRes = await fetch(
+        `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`
+      );
 
-    if (googleRes.status !== 429) {
-      const googleJson = await googleRes.json();
-      const item = googleJson.items?.[0]?.volumeInfo;
+      if (googleRes.status !== 429) {
+        const googleJson = await googleRes.json();
+        const item = googleJson.items?.[0]?.volumeInfo;
 
-      if (item) {
-        title = title || item.title || "";
-        author = author || (item.authors ?? []).join(", ");
-        description = description || item.description || "";
-        pageCount = item.pageCount ? String(item.pageCount) : "";
+        if (item) {
+          title = title || item.title || "";
+          author = author || (item.authors ?? []).join("");
 
-        if (!publishedYear && item.publishedDate) {
-          publishedYear = String(Number(item.publishedDate.slice(0, 4)) || "");
+          description = description || item.description || "";
+
+          if (!pageCount && item.pageCount) {
+            pageCount = String(item.pageCount);
+          }
+
+          if (!publishedYear && item.publishedDate) {
+            publishedYear = String(
+              Number(item.publishedDate.slice(0, 4)) || ""
+            );
+          }
+
+          const image =
+            item.imageLinks?.thumbnail ||
+            item.imageLinks?.smallThumbnail ||
+            "";
+
+          coverUrl = coverUrl || image.replace("http://", "https://");
         }
-
-        const image =
-          item.imageLinks?.thumbnail ||
-          item.imageLinks?.smallThumbnail ||
-          "";
-
-        coverUrl = coverUrl || image.replace("http://", "https://");
       }
+    } catch {
+      // Google失敗は無視
     }
 
-    if (!title && !author) {
-      alert("書籍情報が見つかりませんでした。手入力してください。");
+    if (!title) {
+      alert("書籍情報が見つかりませんでした");
       return;
     }
 
@@ -187,7 +211,7 @@ export default function HomePage({
     setNewAffiliateUrl(amazonUrl);
   } catch (error) {
     console.error(error);
-    alert("取得に失敗しました。手入力してください。");
+    alert("取得に失敗しました");
   } finally {
     setFetchingBook(false);
   }
