@@ -45,6 +45,8 @@ export default function HomePage({
   const [loading, setLoading] = useState(false);
 
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isbn, setIsbn] = useState("");
+  const [fetchingBook, setFetchingBook] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newAuthor, setNewAuthor] = useState("");
   const [newGenre, setNewGenre] = useState("ミステリー");
@@ -104,6 +106,76 @@ export default function HomePage({
     }, 0);
   }
 
+  async function fetchBookByIsbn() {
+    const cleanIsbn = isbn.replace(/[-\s]/g, "");
+
+    if (!cleanIsbn) {
+      alert("ISBNを入力してください");
+      return;
+    }
+
+    setFetchingBook(true);
+
+    try {
+      const googleRes = await fetch(
+        `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`
+      );
+      const googleJson = await googleRes.json();
+
+      const item = googleJson.items?.[0]?.volumeInfo;
+
+      if (item) {
+        setNewTitle(item.title ?? "");
+        setNewAuthor((item.authors ?? []).join(", "));
+        setNewDescription(item.description ?? "");
+        setNewPageCount(item.pageCount ? String(item.pageCount) : "");
+
+        if (item.publishedDate) {
+          setNewPublishedYear(String(Number(item.publishedDate.slice(0, 4)) || ""));
+        }
+
+        const image =
+          item.imageLinks?.thumbnail ||
+          item.imageLinks?.smallThumbnail ||
+          "";
+
+        setNewCoverUrl(image.replace("http://", "https://"));
+        setFetchingBook(false);
+        return;
+      }
+
+      const openbdRes = await fetch(
+        `https://api.openbd.jp/v1/get?isbn=${cleanIsbn}`
+      );
+      const openbdJson = await openbdRes.json();
+      const openbdItem = openbdJson?.[0];
+
+      if (openbdItem) {
+        const summary = openbdItem.summary;
+        const onix = openbdItem.onix;
+
+        setNewTitle(summary?.title ?? "");
+        setNewAuthor(summary?.author ?? "");
+        setNewCoverUrl(summary?.cover ?? "");
+        setNewPublishedYear(summary?.pubdate?.slice(0, 4) ?? "");
+
+        const description =
+          onix?.CollateralDetail?.TextContent?.[0]?.Text ?? "";
+
+        setNewDescription(description);
+        setFetchingBook(false);
+        return;
+      }
+
+      alert("書籍情報が見つかりませんでした。手入力してください。");
+    } catch (error) {
+      console.error(error);
+      alert("取得に失敗しました。手入力してください。");
+    } finally {
+      setFetchingBook(false);
+    }
+  }
+
   async function addBook(e: React.FormEvent) {
     e.preventDefault();
 
@@ -140,6 +212,7 @@ export default function HomePage({
     }
 
     setShowAddForm(false);
+    setIsbn("");
     setNewTitle("");
     setNewAuthor("");
     setNewGenre("ミステリー");
@@ -229,6 +302,24 @@ export default function HomePage({
         {showAddForm && (
           <section className="card" style={{ marginTop: 16 }}>
             <h2>本を追加</h2>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, marginBottom: 12 }}>
+              <input
+                className="input"
+                value={isbn}
+                onChange={(e) => setIsbn(e.target.value)}
+                placeholder="ISBNを入力"
+              />
+              <button
+                className="secondary"
+                type="button"
+                onClick={fetchBookByIsbn}
+                disabled={fetchingBook}
+                style={{ whiteSpace: "nowrap" }}
+              >
+                {fetchingBook ? "取得中..." : "ISBNから取得"}
+              </button>
+            </div>
 
             <form onSubmit={addBook} style={{ display: "grid", gap: 12 }}>
               <input
