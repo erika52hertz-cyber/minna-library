@@ -33,12 +33,21 @@ type BusinessCardBook = {
   book: Book | null;
 };
 
+type ReadingRecord = {
+  id: string;
+  finished_date: string;
+  pages: number | null;
+  book: Book | null;
+};
+
 const STATUS_LABELS: Record<string, string> = {
   finished: "読破",
   reading: "読書中",
   want: "積読",
   owned: "購入予定",
 };
+
+const STATUS_ORDER = ["finished", "reading", "want", "owned"];
 
 export default function ProfilePage({
   userId,
@@ -58,6 +67,7 @@ export default function ProfilePage({
   const [reviews, setReviews] = useState<Review[]>([]);
   const [userBooks, setUserBooks] = useState<UserBook[]>([]);
   const [businessBooks, setBusinessBooks] = useState<BusinessCardBook[]>([]);
+  const [readingRecords, setReadingRecords] = useState<ReadingRecord[]>([]);
   const [saving, setSaving] = useState(false);
 
   const [isFollowing, setIsFollowing] = useState(false);
@@ -71,6 +81,7 @@ export default function ProfilePage({
     loadReviews();
     loadUserBooks();
     loadBusinessCardBooks();
+    loadReadingRecords();
     loadFollowState();
   }, [userId, currentUserId]);
 
@@ -172,6 +183,44 @@ export default function ProfilePage({
     setBusinessBooks(withBooks);
   }
 
+  async function loadReadingRecords() {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+      .toISOString()
+      .slice(0, 10);
+
+    const { data, error } = await supabase
+      .from("reading_records")
+      .select("id,book_id,finished_date,pages")
+      .eq("user_id", userId)
+      .gte("finished_date", firstDay)
+      .order("finished_date", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const withBooks = await Promise.all(
+      (data ?? []).map(async (record) => {
+        const { data: book } = await supabase
+          .from("books")
+          .select("id,title,author_name")
+          .eq("id", record.book_id)
+          .maybeSingle();
+
+        return {
+          id: record.id,
+          finished_date: record.finished_date,
+          pages: record.pages,
+          book,
+        };
+      })
+    );
+
+    setReadingRecords(withBooks);
+  }
+
   async function loadFollowState() {
     const { count: followers } = await supabase
       .from("follows")
@@ -270,36 +319,29 @@ export default function ProfilePage({
     loadBusinessCardBooks();
   }
 
-  return (
-    <div style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
-      <button onClick={onBack}>← 戻る</button>
+  const monthlyBookCount = readingRecords.length;
+  const monthlyPages = readingRecords.reduce(
+    (sum, record) => sum + (record.pages ?? 0),
+    0
+  );
 
-      <section
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 16,
-          padding: 20,
-          background: "white",
-          marginTop: 20,
-        }}
-      >
+  return (
+    <main className="page">
+      <button className="secondary" onClick={onBack}>
+        ← 戻る
+      </button>
+
+      <section className="card" style={{ marginTop: 16 }}>
         <h1>{profile?.username || profile?.email || "ユーザー"}</h1>
 
-        <p style={{ color: "#666" }}>
+        <p className="muted">
           フォロワー: {followersCount} / フォロー中: {followingCount}
         </p>
 
         {!isMe && (
           <button
             onClick={toggleFollow}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 999,
-              border: "1px solid #ddd",
-              background: isFollowing ? "white" : "#92400e",
-              color: isFollowing ? "#333" : "white",
-              cursor: "pointer",
-            }}
+            className={isFollowing ? "secondary" : "primary"}
           >
             {isFollowing ? "フォロー解除" : "フォロー"}
           </button>
@@ -308,98 +350,84 @@ export default function ProfilePage({
         {isMe && (
           <form onSubmit={saveProfile} style={{ display: "grid", gap: 8 }}>
             <input
+              className="input"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="ユーザー名"
-              style={{
-                padding: 10,
-                border: "1px solid #ddd",
-                borderRadius: 8,
-              }}
             />
 
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                padding: 10,
-                border: "none",
-                borderRadius: 8,
-                background: "#92400e",
-                color: "white",
-                fontWeight: "bold",
-              }}
-            >
+            <button className="primary" type="submit" disabled={saving}>
               {saving ? "保存中..." : "プロフィールを保存"}
             </button>
           </form>
         )}
       </section>
 
-      <section style={{ marginTop: 24 }}>
+      <section className="card" style={{ marginTop: 16 }}>
+        <h2>今月の読書記録</h2>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div className="card">
+            <div className="muted">読了冊数</div>
+            <strong style={{ fontSize: 28 }}>{monthlyBookCount}</strong> 冊
+          </div>
+
+          <div className="card">
+            <div className="muted">読了ページ数</div>
+            <strong style={{ fontSize: 28 }}>{monthlyPages}</strong> ページ
+          </div>
+        </div>
+
+        {readingRecords.length === 0 ? (
+          <p className="muted" style={{ marginTop: 12 }}>
+            今月の読書記録はまだありません。
+          </p>
+        ) : (
+          readingRecords.map((record) => (
+            <button
+              key={record.id}
+              className="book-card"
+              onClick={() => record.book && onBookSelect(record.book)}
+            >
+              <strong>{record.book?.title ?? "不明な本"}</strong>
+              <div className="muted">{record.book?.author_name}</div>
+              <div style={{ marginTop: 6 }}>
+                {record.finished_date} / {record.pages ?? 0}ページ
+              </div>
+            </button>
+          ))
+        )}
+      </section>
+
+      <section className="card" style={{ marginTop: 16 }}>
         <h2>名刺がわりの10冊</h2>
 
         {businessBooks.length === 0 ? (
-          <p style={{ color: "#777" }}>
-            まだ登録されていません。本詳細ページから追加できます。
-          </p>
+          <p className="muted">まだ登録されていません。</p>
         ) : (
           businessBooks.map((item, index) => (
-            <div
-              key={item.id}
-              style={{
-                display: "flex",
-                gap: 12,
-                alignItems: "center",
-                padding: 16,
-                marginTop: 12,
-                border: "1px solid #ddd",
-                borderRadius: 12,
-                background: "white",
-              }}
-            >
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 999,
-                  background: "#fef3c7",
-                  color: "#92400e",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: "bold",
-                  flexShrink: 0,
-                }}
-              >
-                {index + 1}
-              </div>
-
+            <div key={item.id} className="book-card">
               <button
                 onClick={() => item.book && onBookSelect(item.book)}
                 style={{
-                  flex: 1,
-                  textAlign: "left",
                   border: "none",
                   background: "transparent",
-                  cursor: item.book ? "pointer" : "default",
+                  padding: 0,
+                  textAlign: "left",
+                  width: "100%",
                 }}
               >
-                <strong>{item.book?.title ?? "不明な本"}</strong>
-                <p style={{ margin: "4px 0 0", color: "#666" }}>
-                  {item.book?.author_name}
-                </p>
+                <strong>
+                  {index + 1}. {item.book?.title ?? "不明な本"}
+                </strong>
+                <div className="muted">{item.book?.author_name}</div>
               </button>
 
               {isMe && (
                 <button
+                  className="secondary"
                   onClick={() => removeBusinessCardBook(item.id)}
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    color: "#c00",
-                    cursor: "pointer",
-                  }}
+                  style={{ marginTop: 8 }}
                 >
                   削除
                 </button>
@@ -409,84 +437,67 @@ export default function ProfilePage({
         )}
       </section>
 
-      <section style={{ marginTop: 24 }}>
+      <section className="card" style={{ marginTop: 16 }}>
         <h2>読書ステータス</h2>
 
-        {userBooks.length === 0 ? (
-          <p style={{ color: "#777" }}>まだ登録された本はありません。</p>
-        ) : (
-          userBooks.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => item.book && onBookSelect(item.book)}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: 16,
-                marginTop: 12,
-                border: "1px solid #ddd",
-                borderRadius: 12,
-                background: "white",
-                cursor: item.book ? "pointer" : "default",
-              }}
-            >
-              <strong>{item.book?.title ?? "不明な本"}</strong>
-              <p>{item.book?.author_name}</p>
-              <span style={{ color: "#92400e", fontWeight: "bold" }}>
-                {STATUS_LABELS[item.status] ?? item.status}
-              </span>
-            </button>
-          ))
-        )}
+        {STATUS_ORDER.map((status) => {
+          const items = userBooks.filter((item) => item.status === status);
+
+          return (
+            <div key={status} style={{ marginTop: 16 }}>
+              <h3>
+                {STATUS_LABELS[status]}：{items.length}冊
+              </h3>
+
+              {items.length === 0 ? (
+                <p className="muted">まだありません。</p>
+              ) : (
+                items.map((item) => (
+                  <button
+                    key={item.id}
+                    className="book-card"
+                    onClick={() => item.book && onBookSelect(item.book)}
+                  >
+                    <strong>{item.book?.title ?? "不明な本"}</strong>
+                    <div className="muted">{item.book?.author_name}</div>
+                  </button>
+                ))
+              )}
+            </div>
+          );
+        })}
       </section>
 
-      <section style={{ marginTop: 24 }}>
+      <section className="card" style={{ marginTop: 16 }}>
         <h2>{isMe ? "自分のレビュー" : "このユーザーのレビュー"}</h2>
 
         {reviews.length === 0 ? (
-          <p>まだレビューはありません</p>
+          <p className="muted">まだレビューはありません。</p>
         ) : (
           reviews.map((review) => (
             <button
               key={review.id}
-              onClick={() => {
-                if (review.book) onBookSelect(review.book);
-              }}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: 16,
-                marginTop: 12,
-                border: "1px solid #ddd",
-                borderRadius: 12,
-                background: "white",
-                cursor: "pointer",
-              }}
+              className="book-card"
+              onClick={() => review.book && onBookSelect(review.book)}
             >
               <strong>{review.book?.title ?? "不明な本"}</strong>
-              <p>{review.book?.author_name}</p>
+              <div className="muted">{review.book?.author_name}</div>
               <div>{"★".repeat(review.rating)}</div>
               <p>{review.body}</p>
             </button>
-
-    
-
-            
           ))
         )}
-        {isMe && (
-  <button
-    onClick={onLogout}
-    className="secondary"
-    style={{ marginTop: 24, width: "100%" }}
-  >
-    ログアウト
-  </button>
-)}
       </section>
-    </div>
+
+      {isMe && (
+        <button
+          className="secondary"
+          onClick={onLogout}
+          style={{ width: "100%", marginTop: 24 }}
+        >
+          ログアウト
+        </button>
+      )}
+    </main>
   );
 }
-
