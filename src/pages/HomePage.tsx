@@ -10,6 +10,11 @@ type Book = {
   emotion_tags: string[] | null;
   theme_tags: string[] | null;
   experience_tags: string[] | null;
+  cover_url?: string | null;
+  page_count?: number | null;
+  published_year?: number | null;
+  description?: string | null;
+  affiliate_url?: string | null;
 };
 
 const GENRES = ["SF", "コメディ", "サスペンス", "ノワール", "ヒューマンドラマ", "ファンタジー", "ホラー", "ミステリー", "冒険", "恋愛", "推理", "歴史・時代小説", "社会派", "純文学", "青春"];
@@ -43,6 +48,11 @@ export default function HomePage({
   const [newTitle, setNewTitle] = useState("");
   const [newAuthor, setNewAuthor] = useState("");
   const [newGenre, setNewGenre] = useState("ミステリー");
+  const [newCoverUrl, setNewCoverUrl] = useState("");
+  const [newPageCount, setNewPageCount] = useState("");
+  const [newPublishedYear, setNewPublishedYear] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newAffiliateUrl, setNewAffiliateUrl] = useState("");
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
@@ -54,7 +64,7 @@ export default function HomePage({
 
     let request = supabase
       .from("books")
-      .select("id,title,author_name,genre,emotion_tags,theme_tags,experience_tags")
+      .select("id,title,author_name,genre,emotion_tags,theme_tags,experience_tags,cover_url,page_count,published_year,description,affiliate_url")
       .limit(50);
 
     if (query.trim()) {
@@ -113,8 +123,13 @@ export default function HomePage({
         emotion_tags: [],
         theme_tags: [],
         experience_tags: [],
+        cover_url: newCoverUrl.trim() || null,
+        page_count: newPageCount ? Number(newPageCount) : null,
+        published_year: newPublishedYear ? Number(newPublishedYear) : null,
+        description: newDescription.trim() || null,
+        affiliate_url: newAffiliateUrl.trim() || null,
       })
-      .select("id,title,author_name,genre,emotion_tags,theme_tags,experience_tags")
+      .select("id,title,author_name,genre,emotion_tags,theme_tags,experience_tags,cover_url,page_count,published_year,description,affiliate_url")
       .single();
 
     setAdding(false);
@@ -127,6 +142,13 @@ export default function HomePage({
     setShowAddForm(false);
     setNewTitle("");
     setNewAuthor("");
+    setNewGenre("ミステリー");
+    setNewCoverUrl("");
+    setNewPageCount("");
+    setNewPublishedYear("");
+    setNewDescription("");
+    setNewAffiliateUrl("");
+
     setBooks((prev) => [data as Book, ...prev]);
     onBookSelect(data as Book);
   }
@@ -235,6 +257,45 @@ export default function HomePage({
                 ))}
               </select>
 
+              <input
+                className="input"
+                value={newCoverUrl}
+                onChange={(e) => setNewCoverUrl(e.target.value)}
+                placeholder="書影URL（任意）"
+              />
+
+              <input
+                className="input"
+                type="number"
+                min="0"
+                value={newPageCount}
+                onChange={(e) => setNewPageCount(e.target.value)}
+                placeholder="ページ数（任意）"
+              />
+
+              <input
+                className="input"
+                type="number"
+                min="0"
+                value={newPublishedYear}
+                onChange={(e) => setNewPublishedYear(e.target.value)}
+                placeholder="刊行年（任意）"
+              />
+
+              <textarea
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="あらすじ（任意）"
+                style={{ minHeight: 90 }}
+              />
+
+              <input
+                className="input"
+                value={newAffiliateUrl}
+                onChange={(e) => setNewAffiliateUrl(e.target.value)}
+                placeholder="購入リンク（任意）"
+              />
+
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="primary" type="submit" disabled={adding}>
                   {adding ? "追加中..." : "追加する"}
@@ -254,13 +315,50 @@ export default function HomePage({
 
         {books.map((book) => (
           <button key={book.id} className="book-card" onClick={() => onBookSelect(book)}>
-            <strong style={{ fontSize: 18 }}>{book.title}</strong>
-            <div className="muted" style={{ marginTop: 4 }}>{book.author_name}</div>
-            {book.genre && (
-              <div style={{ marginTop: 8, color: "#b45309", fontWeight: 700 }}>
-                {book.genre}
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              {book.cover_url ? (
+                <img
+                  src={book.cover_url}
+                  alt={book.title}
+                  style={{
+                    width: 48,
+                    height: 68,
+                    objectFit: "cover",
+                    borderRadius: 8,
+                    border: "1px solid #e7e5e4",
+                    flexShrink: 0,
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 48,
+                    height: 68,
+                    borderRadius: 8,
+                    background: "#fef3c7",
+                    color: "#92400e",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 12,
+                    fontWeight: "bold",
+                    flexShrink: 0,
+                  }}
+                >
+                  本
+                </div>
+              )}
+
+              <div>
+                <strong style={{ fontSize: 18 }}>{book.title}</strong>
+                <div className="muted" style={{ marginTop: 4 }}>{book.author_name}</div>
+                {book.genre && (
+                  <div style={{ marginTop: 8, color: "#b45309", fontWeight: 700 }}>
+                    {book.genre}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </button>
         ))}
       </section>
