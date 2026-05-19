@@ -396,9 +396,11 @@ export default function BookDetailPage({
   }
 
   async function openPurchaseLink() {
+  const amazonTag = import.meta.env.VITE_AMAZON_ASSOCIATE_TAG;
+
   const fallbackPurchaseUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(
     `${bookDetail.title} ${bookDetail.author_name}`
-  )}`;
+  )}${amazonTag ? `&tag=${amazonTag}` : ""}`;
 
   const purchaseUrl = bookDetail.affiliate_url || fallbackPurchaseUrl;
 
