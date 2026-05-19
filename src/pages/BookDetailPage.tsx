@@ -88,112 +88,131 @@ export default function BookDetailPage({
   }
 
   async function updateBookByIsbn() {
-  const cleanIsbn = isbn.replace(/[-\s]/g, "");
+    const cleanIsbn = isbn.replace(/[-\s]/g, "");
 
-  if (!cleanIsbn) {
-    alert("ISBNを入力してください");
-    return;
-  }
-
-  setFetchingBook(true);
-
-  try {
-    let nextData: Partial<Book> | null = null;
-
-    // 1. まず openBD を使う
-    const openbdRes = await fetch(
-      `https://api.openbd.jp/v1/get?isbn=${cleanIsbn}`
-    );
-    const openbdJson = await openbdRes.json();
-    const openbdItem = openbdJson?.[0];
-
-    if (openbdItem) {
-      const summary = openbdItem.summary;
-      const onix = openbdItem.onix;
-
-      const description =
-        onix?.CollateralDetail?.TextContent?.[0]?.Text ?? "";
-
-      nextData = {
-        title: summary?.title || bookDetail.title,
-        author_name: summary?.author || bookDetail.author_name,
-        cover_url: summary?.cover || bookDetail.cover_url || null,
-        published_year: summary?.pubdate
-          ? Number(summary.pubdate.slice(0, 4)) ||
-            bookDetail.published_year ||
-            null
-          : bookDetail.published_year || null,
-        description: description || bookDetail.description || null,
-      };
+    if (!cleanIsbn) {
+      alert("ISBNを入力してください");
+      return;
     }
 
-    // 2. openBDで見つからなければ Google Books
-    if (!nextData) {
-      const googleRes = await fetch(
-        `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`
+    setFetchingBook(true);
+
+    try {
+      let nextData: Partial<Book> | null = null;
+
+      const openbdRes = await fetch(
+        `https://api.openbd.jp/v1/get?isbn=${cleanIsbn}`
       );
+      const openbdJson = await openbdRes.json();
+      const openbdItem = openbdJson?.[0];
 
-      if (googleRes.status === 429) {
-        alert("取得回数が多いため、しばらく待ってから再試行してください。");
-        return;
-      }
+      if (openbdItem) {
+        const summary = openbdItem.summary;
+        const onix = openbdItem.onix;
 
-      const googleJson = await googleRes.json();
-      const item = googleJson.items?.[0]?.volumeInfo;
+        const rawAuthor = summary?.author ?? "";
+        const parts = rawAuthor.split(",");
+        const cleanedAuthor = parts
+          .filter((p: string) => !p.match(/^\d{4}/))
+          .join("");
 
-      if (item) {
-        const image =
-          item.imageLinks?.thumbnail ||
-          item.imageLinks?.smallThumbnail ||
-          "";
+        const description =
+          onix?.CollateralDetail?.TextContent?.[0]?.Text ?? "";
 
         nextData = {
-          title: item.title || bookDetail.title,
-          author_name:
-            (item.authors ?? []).join(", ") || bookDetail.author_name,
-          description: item.description || bookDetail.description || null,
-          page_count: item.pageCount ?? bookDetail.page_count ?? null,
-          published_year: item.publishedDate
-            ? Number(item.publishedDate.slice(0, 4)) ||
+          title: summary?.title || bookDetail.title,
+          author_name: cleanedAuthor || bookDetail.author_name,
+          cover_url: summary?.cover || bookDetail.cover_url || null,
+          published_year: summary?.pubdate
+            ? Number(summary.pubdate.slice(0, 4)) ||
               bookDetail.published_year ||
               null
             : bookDetail.published_year || null,
-          cover_url: image
-            ? image.replace("http://", "https://")
-            : bookDetail.cover_url || null,
+          description: description || bookDetail.description || null,
         };
       }
+
+      try {
+        const googleRes = await fetch(
+          `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}`
+        );
+
+        if (googleRes.status !== 429) {
+          const googleJson = await googleRes.json();
+          const item = googleJson.items?.[0]?.volumeInfo;
+
+          if (item) {
+            const image =
+              item.imageLinks?.thumbnail ||
+              item.imageLinks?.smallThumbnail ||
+              "";
+
+            nextData = {
+              ...(nextData ?? {}),
+              title: nextData?.title || item.title || bookDetail.title,
+              author_name:
+                nextData?.author_name ||
+                (item.authors ?? []).join("") ||
+                bookDetail.author_name,
+              description:
+                nextData?.description ||
+                item.description ||
+                bookDetail.description ||
+                null,
+              page_count:
+                item.pageCount ?? bookDetail.page_count ?? null,
+              published_year:
+                nextData?.published_year ||
+                (item.publishedDate
+                  ? Number(item.publishedDate.slice(0, 4)) ||
+                    bookDetail.published_year ||
+                    null
+                  : bookDetail.published_year || null),
+              cover_url:
+                nextData?.cover_url ||
+                (image ? image.replace("http://", "https://") : null) ||
+                bookDetail.cover_url ||
+                null,
+            };
+          }
+        }
+      } catch {
+        // Google Books が失敗しても openBD の情報で続行
+      }
+
+      if (!nextData) {
+        alert("書籍情報が見つかりませんでした。手入力してください。");
+        return;
+      }
+
+      if (!nextData.cover_url) {
+        nextData.cover_url = `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-L.jpg`;
+      }
+
+      const { data, error } = await supabase
+        .from("books")
+        .update(nextData)
+        .eq("id", book.id)
+        .select(
+          "id,title,author_name,genre,cover_url,page_count,published_year,description,affiliate_url"
+        )
+        .single();
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      setBookDetail(data as Book);
+      setIsbn("");
+      alert("書籍情報を更新しました");
+    } catch (error) {
+      console.error(error);
+      alert("取得または更新に失敗しました");
+    } finally {
+      setFetchingBook(false);
     }
-
-    if (!nextData) {
-      alert("書籍情報が見つかりませんでした。手入力してください。");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("books")
-      .update(nextData)
-      .eq("id", book.id)
-      .select(
-        "id,title,author_name,genre,cover_url,page_count,published_year,description,affiliate_url"
-      )
-      .single();
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setBookDetail(data as Book);
-    setIsbn("");
-    alert("書籍情報を更新しました");
-  } catch (error) {
-    console.error(error);
-    alert("取得または更新に失敗しました");
-  } finally {
-    setFetchingBook(false);
   }
-}
 
   async function loadStatus() {
     const { data } = await supabase
@@ -395,29 +414,27 @@ export default function BookDetailPage({
     loadReviews();
   }
 
+  function getPurchaseUrl() {
+    const amazonTag = import.meta.env.VITE_AMAZON_ASSOCIATE_TAG;
+
+    const fallbackPurchaseUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(
+      `${bookDetail.title} ${bookDetail.author_name}`
+    )}${amazonTag ? `&tag=${amazonTag}` : ""}`;
+
+    return bookDetail.affiliate_url || fallbackPurchaseUrl;
+  }
+
   async function openPurchaseLink() {
-  const amazonTag = import.meta.env.VITE_AMAZON_ASSOCIATE_TAG;
+    const purchaseUrl = getPurchaseUrl();
 
-  const fallbackPurchaseUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(
-    `${bookDetail.title} ${bookDetail.author_name}`
-  )}${amazonTag ? `&tag=${amazonTag}` : ""}`;
+    await supabase.from("affiliate_clicks").insert({
+      user_id: userId,
+      book_id: book.id,
+      url: purchaseUrl,
+    });
 
-  const purchaseUrl = bookDetail.affiliate_url || fallbackPurchaseUrl;
-
-  await supabase.from("affiliate_clicks").insert({
-    user_id: userId,
-    book_id: book.id,
-    url: purchaseUrl,
-  });
-
-  window.open(purchaseUrl, "_blank", "noopener,noreferrer");
-}
-
-  const fallbackPurchaseUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(
-    `${bookDetail.title} ${bookDetail.author_name}`
-  )}`;
-
-  const purchaseUrl = bookDetail.affiliate_url || fallbackPurchaseUrl;
+    window.open(purchaseUrl, "_blank", "noopener,noreferrer");
+  }
 
   return (
     <main className="page">
@@ -481,12 +498,9 @@ export default function BookDetailPage({
         )}
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
-          <button
-          onClick={openPurchaseLink}
-          className="primary"
-          >
-            この本を読む
-            </button>
+          <button onClick={openPurchaseLink} className="primary">
+            この本をAmazonで見る
+          </button>
 
           <button
             onClick={toggleBusinessCardBook}
@@ -497,6 +511,10 @@ export default function BookDetailPage({
               : `名刺がわりの10冊に追加（${businessCount}/10）`}
           </button>
         </div>
+
+        <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
+          価格や在庫は外部サイトで確認できます。
+        </p>
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
@@ -633,9 +651,15 @@ export default function BookDetailPage({
               <div style={{ marginTop: 8 }}>{"★".repeat(review.rating)}</div>
               <p>{review.body}</p>
 
-              <button className="secondary" onClick={() => toggleLike(review)}>
-                {review.liked_by_me ? "♥ いいね済み" : "♡ いいね"} {review.like_count}
-              </button>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <button className="secondary" onClick={() => toggleLike(review)}>
+                  {review.liked_by_me ? "♥ いいね済み" : "♡ いいね"} {review.like_count}
+                </button>
+
+                <button className="primary" onClick={openPurchaseLink}>
+                  この本をAmazonで見る
+                </button>
+              </div>
             </div>
           );
         })}
