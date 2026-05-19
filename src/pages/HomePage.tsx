@@ -125,7 +125,7 @@ export default function HomePage({
     let pageCount = "";
 
     // =========================
-    // openBD
+    // ① openBD（日本最強）
     // =========================
     const openbdRes = await fetch(
       `https://api.openbd.jp/v1/get?isbn=${cleanIsbn}`
@@ -139,7 +139,7 @@ export default function HomePage({
 
       title = summary?.title ?? "";
 
-      // ★ 著者名整形
+      // 著者整形
       const rawAuthor = summary?.author ?? "";
       const parts = rawAuthor.split(",");
       author = parts
@@ -154,7 +154,7 @@ export default function HomePage({
     }
 
     // =========================
-    // Google Books（補完）
+    // ② Google Books（ページ数・あらすじ補完）
     // =========================
     try {
       const googleRes = await fetch(
@@ -169,7 +169,9 @@ export default function HomePage({
           title = title || item.title || "";
           author = author || (item.authors ?? []).join("");
 
-          description = description || item.description || "";
+          if (!description) {
+            description = item.description || "";
+          }
 
           if (!pageCount && item.pageCount) {
             pageCount = String(item.pageCount);
@@ -186,11 +188,20 @@ export default function HomePage({
             item.imageLinks?.smallThumbnail ||
             "";
 
-          coverUrl = coverUrl || image.replace("http://", "https://");
+          if (!coverUrl && image) {
+            coverUrl = image.replace("http://", "https://");
+          }
         }
       }
     } catch {
-      // Google失敗は無視
+      // 無視
+    }
+
+    // =========================
+    // ③ Open Library（書影補完）
+    // =========================
+    if (!coverUrl) {
+      coverUrl = `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-L.jpg`;
     }
 
     if (!title) {
@@ -198,6 +209,9 @@ export default function HomePage({
       return;
     }
 
+    // =========================
+    // セット
+    // =========================
     setNewTitle(title);
     setNewAuthor(author);
     setNewCoverUrl(coverUrl);
@@ -205,6 +219,7 @@ export default function HomePage({
     setNewDescription(description);
     setNewPageCount(pageCount);
 
+    // アフィリエイトリンク
     const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(
       `${title} ${author}`
     )}`;
