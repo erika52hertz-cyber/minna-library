@@ -395,6 +395,22 @@ export default function BookDetailPage({
     loadReviews();
   }
 
+  async function openPurchaseLink() {
+  const fallbackPurchaseUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(
+    `${bookDetail.title} ${bookDetail.author_name}`
+  )}`;
+
+  const purchaseUrl = bookDetail.affiliate_url || fallbackPurchaseUrl;
+
+  await supabase.from("affiliate_clicks").insert({
+    user_id: userId,
+    book_id: book.id,
+    url: purchaseUrl,
+  });
+
+  window.open(purchaseUrl, "_blank", "noopener,noreferrer");
+}
+
   const fallbackPurchaseUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(
     `${bookDetail.title} ${bookDetail.author_name}`
   )}`;
@@ -463,15 +479,12 @@ export default function BookDetailPage({
         )}
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
-          <a
-            href={purchaseUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="primary"
-            style={{ textDecoration: "none", display: "inline-block" }}
+          <button
+          onClick={openPurchaseLink}
+          className="primary"
           >
             この本を読む
-          </a>
+            </button>
 
           <button
             onClick={toggleBusinessCardBook}
