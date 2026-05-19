@@ -209,6 +209,15 @@ export default function HomePage({
       return;
     }
 
+    console.log("ISBN取得結果", {
+  title,
+  author,
+  coverUrl,
+  publishedYear,
+  description,
+  pageCount,
+});
+
     // =========================
     // セット
     // =========================
