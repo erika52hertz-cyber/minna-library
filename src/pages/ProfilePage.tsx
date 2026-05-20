@@ -53,12 +53,14 @@ const STATUS_ORDER = ["finished", "reading", "want", "owned"];
 export default function ProfilePage({
   userId,
   currentUserId,
+  isPremium,
   onBack,
   onBookSelect,
   onLogout,
 }: {
   userId: string;
   currentUserId: string;
+  isPremium: boolean;
   onBack: () => void;
   onBookSelect: (book: Book) => void;
   onLogout: () => void;
@@ -84,7 +86,7 @@ export default function ProfilePage({
     loadBusinessCardBooks();
     loadReadingRecords();
     loadFollowState();
-  }, [userId, currentUserId]);
+  }, [userId, currentUserId, isPremium]);
 
   async function loadProfile() {
     const { data } = await supabase
@@ -185,17 +187,22 @@ export default function ProfilePage({
   }
 
   async function loadReadingRecords() {
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
-      .toISOString()
-      .slice(0, 10);
-
-    const { data, error } = await supabase
+    let request = supabase
       .from("reading_records")
       .select("id,book_id,finished_date")
       .eq("user_id", userId)
-      .gte("finished_date", firstDay)
       .order("finished_date", { ascending: false });
+
+    if (!isPremium) {
+      const today = new Date();
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+        .toISOString()
+        .slice(0, 10);
+
+      request = request.gte("finished_date", firstDay);
+    }
+
+    const { data, error } = await request;
 
     if (error) {
       console.error(error);
@@ -320,9 +327,11 @@ export default function ProfilePage({
     loadBusinessCardBooks();
   }
 
-  const monthlyBookCount = readingRecords.length;
+  const recordLabel = isPremium ? "読書記録" : "今月の読書記録";
 
-  const monthlyPages = readingRecords.reduce((sum, record) => {
+  const bookCount = readingRecords.length;
+
+  const totalPages = readingRecords.reduce((sum, record) => {
     return sum + (record.book?.page_count ?? 0);
   }, 0);
 
@@ -353,6 +362,12 @@ export default function ProfilePage({
         <p className="muted">
           現在のプラン：{profile?.plan === "premium" ? "プレミアム" : "無料"}
         </p>
+
+        {!isPremium && isMe && (
+          <p className="muted">
+            無料プランでは読書レポートは今月分のみ表示されます。
+          </p>
+        )}
 
         <p className="muted">
           フォロワー: {followersCount} / フォロー中: {followingCount}
@@ -395,30 +410,24 @@ export default function ProfilePage({
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
-        <h2>今月の読書記録</h2>
+        <h2>{recordLabel}</h2>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 12,
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div className="card">
             <div className="muted">読了冊数</div>
-            <strong style={{ fontSize: 28 }}>{monthlyBookCount}</strong> 冊
+            <strong style={{ fontSize: 28 }}>{bookCount}</strong> 冊
           </div>
 
           <div className="card">
             <div className="muted">読了ページ数</div>
-            <strong style={{ fontSize: 28 }}>{monthlyPages}</strong> ページ
+            <strong style={{ fontSize: 28 }}>{totalPages}</strong> ページ
           </div>
         </div>
 
         <h3 style={{ marginTop: 20 }}>日別ページ数</h3>
 
         {chartData.length === 0 ? (
-          <p className="muted">今月の読書記録はまだありません。</p>
+          <p className="muted">読書記録はまだありません。</p>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
             {chartData.map((item) => (
