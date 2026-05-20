@@ -5,6 +5,7 @@ type Profile = {
   id: string;
   username: string | null;
   email: string | null;
+  plan: "free" | "premium" | null;
 };
 
 type Book = {
@@ -88,11 +89,11 @@ export default function ProfilePage({
   async function loadProfile() {
     const { data } = await supabase
       .from("profiles")
-      .select("id,username,email")
+      .select("id,username,email,plan")
       .eq("id", userId)
       .maybeSingle();
 
-    setProfile(data);
+    setProfile(data as Profile | null);
     setUsername(data?.username ?? "");
   }
 
@@ -260,6 +261,7 @@ export default function ProfilePage({
       id: currentUserId,
       username: username.trim(),
       email: profile?.email ?? null,
+      plan: profile?.plan ?? "free",
     });
 
     setSaving(false);
@@ -349,6 +351,10 @@ export default function ProfilePage({
         <h1>{profile?.username || profile?.email || "ユーザー"}</h1>
 
         <p className="muted">
+          現在のプラン：{profile?.plan === "premium" ? "プレミアム" : "無料"}
+        </p>
+
+        <p className="muted">
           フォロワー: {followersCount} / フォロー中: {followingCount}
         </p>
 
@@ -358,6 +364,17 @@ export default function ProfilePage({
             className={isFollowing ? "secondary" : "primary"}
           >
             {isFollowing ? "フォロー解除" : "フォロー"}
+          </button>
+        )}
+
+        {isMe && profile?.plan !== "premium" && (
+          <button
+            className="primary"
+            type="button"
+            onClick={() => alert("決済機能は次に実装します")}
+            style={{ marginBottom: 12 }}
+          >
+            プレミアムにする（月350円）
           </button>
         )}
 
