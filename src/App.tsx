@@ -15,7 +15,9 @@ type Book = {
 
 export default function App() {
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [page, setPage] = useState<"home" | "feed" | "ranking" | "profile" | "premium">("home");
+  const [page, setPage] = useState<
+    "home" | "feed" | "ranking" | "profile" | "premium"
+  >("home");
 
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [viewUserId, setViewUserId] = useState<string | null>(null);
@@ -70,7 +72,9 @@ export default function App() {
         ? await supabase.auth.signInWithPassword({ email, password })
         : await supabase.auth.signUp({ email, password });
 
-    if (result.error) alert(result.error.message);
+    if (result.error) {
+      alert(result.error.message);
+    }
   }
 
   async function logout() {
@@ -105,17 +109,38 @@ export default function App() {
           </div>
 
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-            <button className={mode === "login" ? "primary" : "secondary"} onClick={() => setMode("login")}>
+            <button
+              className={mode === "login" ? "primary" : "secondary"}
+              onClick={() => setMode("login")}
+            >
               ログイン
             </button>
-            <button className={mode === "signup" ? "primary" : "secondary"} onClick={() => setMode("signup")}>
+
+            <button
+              className={mode === "signup" ? "primary" : "secondary"}
+              onClick={() => setMode("signup")}
+            >
               新規登録
             </button>
           </div>
 
           <form onSubmit={submit} style={{ display: "grid", gap: 12 }}>
-            <input className="input" type="email" placeholder="メールアドレス" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <input className="input" type="password" placeholder="パスワード" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <input
+              className="input"
+              type="email"
+              placeholder="メールアドレス"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+
+            <input
+              className="input"
+              type="password"
+              placeholder="パスワード"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+
             <button className="primary" type="submit">
               {mode === "login" ? "ログインする" : "登録する"}
             </button>
@@ -160,7 +185,13 @@ export default function App() {
       />
     );
   } else if (page === "ranking") {
-    content = <RankingPage onBack={() => setPage("home")} onBookSelect={setSelectedBook} onUserSelect={setViewUserId} />;
+    content = (
+      <RankingPage
+        onBack={() => setPage("home")}
+        onBookSelect={setSelectedBook}
+        onUserSelect={setViewUserId}
+      />
+    );
   } else if (page === "premium") {
     content = <PremiumPage onBack={() => setPage("profile")} />;
   } else if (page === "profile") {
@@ -207,19 +238,53 @@ export default function App() {
           zIndex: 50,
         }}
       >
-        <NavButton active={page === "home" && !selectedBook && !viewUserId} onClick={() => { resetViews(); setPage("home"); }}>
+        <NavButton
+          active={page === "home" && !selectedBook && !viewUserId}
+          onClick={() => {
+            resetViews();
+            setPage("home");
+          }}
+        >
           ホーム
         </NavButton>
-        <NavButton active={page === "feed" && !selectedBook && !viewUserId} onClick={() => { resetViews(); setPage("feed"); }}>
+
+        <NavButton
+          active={page === "feed" && !selectedBook && !viewUserId}
+          onClick={() => {
+            resetViews();
+            setPage("feed");
+          }}
+        >
           フォロー
         </NavButton>
-        <NavButton active={page === "ranking" && !selectedBook && !viewUserId} onClick={() => { resetViews(); setPage("ranking"); }}>
+
+        <NavButton
+          active={page === "ranking" && !selectedBook && !viewUserId}
+          onClick={() => {
+            resetViews();
+            setPage("ranking");
+          }}
+        >
           人気
         </NavButton>
-        <NavButton active={page === "premium" && !selectedBook && !viewUserId} onClick={() => { resetViews(); setPage("premium"); }}>
+
+        <NavButton
+          active={page === "premium" && !selectedBook && !viewUserId}
+          onClick={() => {
+            resetViews();
+            setPage("premium");
+          }}
+        >
           {isPremium ? "Premium" : "プレミアム"}
         </NavButton>
-        <NavButton active={page === "profile" && !selectedBook && !viewUserId} onClick={() => { resetViews(); setPage("profile"); }}>
+
+        <NavButton
+          active={page === "profile" && !selectedBook && !viewUserId}
+          onClick={() => {
+            resetViews();
+            setPage("profile");
+          }}
+        >
           マイページ
         </NavButton>
       </nav>

@@ -32,6 +32,7 @@ type Review = {
 type Props = {
   book: Book;
   userId: string;
+  isPremium: boolean;
   onBack: () => void;
   onUserClick: (userId: string) => void;
 };
@@ -46,6 +47,7 @@ const STATUS_OPTIONS = [
 export default function BookDetailPage({
   book,
   userId,
+  isPremium,
   onBack,
   onUserClick,
 }: Props) {
@@ -67,12 +69,14 @@ export default function BookDetailPage({
 
   const [isBusinessCardBook, setIsBusinessCardBook] = useState(false);
   const [businessCount, setBusinessCount] = useState(0);
+  const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
     loadBookDetail();
     loadReviews();
     loadStatus();
     loadBusinessCardState();
+    loadSavedState();
   }, [book.id]);
 
   async function loadBookDetail() {
@@ -292,6 +296,49 @@ export default function BookDetailPage({
     setIsBusinessCardBook(!!data);
   }
 
+  async function loadSavedState() {
+  const { data } = await supabase
+    .from("saved_books")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("book_id", book.id)
+    .maybeSingle();
+
+  setIsSaved(!!data);
+}
+
+async function toggleSavedBook() {
+  if (!isPremium) {
+    alert("保存機能はプレミアム限定です");
+    return;
+  }
+
+  if (isSaved) {
+    const { error } = await supabase
+      .from("saved_books")
+      .delete()
+      .eq("user_id", userId)
+      .eq("book_id", book.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+  } else {
+    const { error } = await supabase.from("saved_books").insert({
+      user_id: userId,
+      book_id: book.id,
+    });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+  }
+
+  loadSavedState();
+}
+
   async function toggleBusinessCardBook() {
     if (isBusinessCardBook) {
       const { error } = await supabase
@@ -498,19 +545,31 @@ export default function BookDetailPage({
         )}
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
-          <button onClick={openPurchaseLink} className="primary">
-            この本をAmazonで見る
-          </button>
+  <button onClick={openPurchaseLink} className="primary">
+    この本をAmazonで見る
+  </button>
 
-          <button
-            onClick={toggleBusinessCardBook}
-            className={isBusinessCardBook ? "secondary" : "primary"}
-          >
-            {isBusinessCardBook
-              ? "名刺がわりの10冊から外す"
-              : `名刺がわりの10冊に追加（${businessCount}/10）`}
-          </button>
-        </div>
+  <button
+    onClick={toggleBusinessCardBook}
+    className={isBusinessCardBook ? "secondary" : "primary"}
+  >
+    名刺がわりの10冊...
+  </button>
+
+  {/* ★ここに追加 */}
+  <button
+    onClick={toggleSavedBook}
+    className={isSaved ? "secondary" : "primary"}
+  >
+    {isSaved ? "保存済み" : "気になる本に保存"}
+  </button>
+</div>
+
+{!isPremium && (
+  <p className="muted" style={{ fontSize: 13 }}>
+    保存機能はプレミアム限定です。
+  </p>
+)}
 
         <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
           価格や在庫は外部サイトで確認できます。
