@@ -27,19 +27,42 @@ export default function App() {
 
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [plan, setPlan] = useState<"free" | "premium">("free");
+
+  const isPremium = plan === "premium";
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
+
+      if (data.session?.user?.id) {
+        loadMyPlan(data.session.user.id);
+      }
     });
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+
+      if (session?.user?.id) {
+        loadMyPlan(session.user.id);
+      } else {
+        setPlan("free");
+      }
     });
 
     return () => data.subscription.unsubscribe();
   }, []);
+
+  async function loadMyPlan(userId: string) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("plan")
+      .eq("id", userId)
+      .maybeSingle();
+
+    setPlan(data?.plan === "premium" ? "premium" : "free");
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,6 +82,7 @@ export default function App() {
     setPage("home");
     setSelectedBook(null);
     setViewUserId(null);
+    setPlan("free");
   }
 
   function resetViews() {
@@ -248,7 +272,7 @@ export default function App() {
             setPage("premium");
           }}
         >
-          プレミアム
+          {isPremium ? "Premium" : "プレミアム"}
         </NavButton>
 
         <NavButton
