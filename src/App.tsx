@@ -6,6 +6,7 @@ import BookDetailPage from "./pages/BookDetailPage";
 import FollowingFeedPage from "./pages/FollowingFeedPage";
 import RankingPage from "./pages/RankingPage";
 import PremiumPage from "./pages/PremiumPage";
+import RecommendPage from "./pages/RecommendPage";
 
 type Book = {
   id: string;
@@ -16,8 +17,8 @@ type Book = {
 export default function App() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [page, setPage] = useState<
-    "home" | "feed" | "ranking" | "profile" | "premium"
-  >("home");
+  "home" | "feed" | "ranking" | "recommend" | "profile" | "premium"
+>("home");
 
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [viewUserId, setViewUserId] = useState<string | null>(null);
@@ -155,14 +156,15 @@ export default function App() {
   if (selectedBook) {
     content = (
       <BookDetailPage
-        book={selectedBook}
-        userId={session.user.id}
-        onBack={() => setSelectedBook(null)}
-        onUserClick={(id) => {
-          setSelectedBook(null);
-          setViewUserId(id);
+      book={selectedBook}
+      userId={session.user.id}
+      isPremium={isPremium}
+      onBack={() => setSelectedBook(null)}
+      onUserClick={(id) => {
+        setSelectedBook(null);
+        setViewUserId(id);
         }}
-      />
+        />
     );
   } else if (viewUserId) {
     content = (
@@ -192,6 +194,14 @@ export default function App() {
         onUserSelect={setViewUserId}
       />
     );
+    } else if (page === "recommend") {
+  content = (
+    <RecommendPage
+      userId={session.user.id}
+      onBack={() => setPage("home")}
+      onBookSelect={setSelectedBook}
+    />
+  );
   } else if (page === "premium") {
     content = <PremiumPage onBack={() => setPage("profile")} />;
   } else if (page === "profile") {
@@ -216,6 +226,7 @@ export default function App() {
           setSelectedBook(null);
           setViewUserId(id);
         }}
+        isPremium={isPremium} 
       />
     );
   }
@@ -234,7 +245,7 @@ export default function App() {
           background: "white",
           borderTop: "1px solid #ddd",
           display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
+          gridTemplateColumns: "repeat(6, 1fr)",
           zIndex: 50,
         }}
       >
@@ -267,6 +278,16 @@ export default function App() {
         >
           人気
         </NavButton>
+
+        <NavButton
+  active={page === "recommend" && !selectedBook && !viewUserId}
+  onClick={() => {
+    resetViews();
+    setPage("recommend");
+  }}
+>
+  おすすめ
+</NavButton>
 
         <NavButton
           active={page === "premium" && !selectedBook && !viewUserId}
