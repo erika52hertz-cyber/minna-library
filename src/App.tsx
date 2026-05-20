@@ -5,6 +5,7 @@ import ProfilePage from "./pages/ProfilePage";
 import BookDetailPage from "./pages/BookDetailPage";
 import FollowingFeedPage from "./pages/FollowingFeedPage";
 import RankingPage from "./pages/RankingPage";
+import PremiumPage from "./pages/PremiumPage";
 
 type Book = {
   id: string;
@@ -14,7 +15,10 @@ type Book = {
 
 export default function App() {
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [page, setPage] = useState<"home" | "feed" | "ranking" | "profile">("home");
+  const [page, setPage] = useState<
+    "home" | "feed" | "ranking" | "profile" | "premium"
+  >("home");
+
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [viewUserId, setViewUserId] = useState<string | null>(null);
 
@@ -74,10 +78,10 @@ export default function App() {
           </p>
 
           <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
-            <div>本を検索してレビューできる</div>
-            <div>良いレビューにいいねできる</div>
-            <div>名刺がわりの10冊をプロフィールに並べられる</div>
-            <div>人気レビューランキングを見られる</div>
+            <div>本を検索してレビューできます</div>
+            <div>レビューにいいねできます</div>
+            <div>名刺がわりの10冊をプロフィールに表示できます</div>
+            <div>人気レビューランキングを確認できます</div>
           </div>
 
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -162,6 +166,8 @@ export default function App() {
         onUserSelect={setViewUserId}
       />
     );
+  } else if (page === "premium") {
+    content = <PremiumPage onBack={() => setPage("profile")} />;
   } else if (page === "profile") {
     content = (
       <ProfilePage
@@ -201,7 +207,7 @@ export default function App() {
           background: "white",
           borderTop: "1px solid #ddd",
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: "repeat(5, 1fr)",
           zIndex: 50,
         }}
       >
@@ -233,6 +239,16 @@ export default function App() {
           }}
         >
           人気
+        </NavButton>
+
+        <NavButton
+          active={page === "premium" && !selectedBook && !viewUserId}
+          onClick={() => {
+            resetViews();
+            setPage("premium");
+          }}
+        >
+          プレミアム
         </NavButton>
 
         <NavButton
